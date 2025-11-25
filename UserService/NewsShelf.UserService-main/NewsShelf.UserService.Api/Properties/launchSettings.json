@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_URLS": "https://localhost:57466",
+        "ASPNETCORE_URLS": "https://localhost:57466",
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
