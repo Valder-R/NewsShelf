@@ -1,7 +1,7 @@
 ﻿
-namespace DataAccess.Entities
+namespace BusinessLogic.DTO
 {
-    public class News
+    public class NewsResponse
     {
         public int Id { get; set; }
 
@@ -9,11 +9,10 @@ namespace DataAccess.Entities
 
         public string Content { get; set; } = null!;
 
-        public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
+        public DateTime PublishedAt { get; set; }
 
         public string? Author { get; set; }
 
-        public ICollection<NewsImage> Images { get; set; } = new List<NewsImage>();
+        public List<string> ImageUrls { get; set; } = new();
     }
 }
- 
