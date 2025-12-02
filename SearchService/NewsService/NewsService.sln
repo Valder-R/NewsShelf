@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36623.8
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewsService", "NewsService\NewsService.csproj", "{671EA5C7-8414-4C70-A5FD-EE35A70A03D4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewsApi", "NewsService\NewsApi.csproj", "{671EA5C7-8414-4C70-A5FD-EE35A70A03D4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAccess", "DataAccess\DataAccess.csproj", "{F99972D1-A9E3-4AE8-94A2-C55AC86E2EBC}"
 EndProject
