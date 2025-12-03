@@ -1,4 +1,6 @@
 ﻿
+using DataAccess.Entities;
+
 namespace BusinessLogic.DTO
 {
     public class NewsResponse
@@ -12,6 +14,8 @@ namespace BusinessLogic.DTO
         public DateTime PublishedAt { get; set; }
 
         public string? Author { get; set; }
+
+        public NewsCategory Category { get; set; }
 
         public List<string> ImageUrls { get; set; } = new();
     }

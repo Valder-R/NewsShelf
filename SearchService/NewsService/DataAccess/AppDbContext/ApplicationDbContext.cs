@@ -12,5 +12,15 @@ namespace DataAccess.AppDbContext
 
         public DbSet<News> NewsItems => Set<News>();
         public DbSet<NewsImage> NewsImages => Set<NewsImage>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Store enum Category as string
+            modelBuilder.Entity<News>()
+                .Property(n => n.Category)
+                .HasConversion<string>();
+        }
     }
 }

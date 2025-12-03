@@ -1,5 +1,6 @@
 ﻿using BusinessLogic.Contracts;
 using BusinessLogic.DTO;
+using DataAccess.Entities;
 using Microsoft.AspNetCore.Mvc;
 using NewsApi.Dto;
 
@@ -52,60 +53,13 @@ namespace NewsApi.Controllers
         }
 
         /// <summary>
-        /// Creates a news entry when the client already has image URLs.
-        /// For example, when images are hosted somewhere else.
-        /// </summary>
-        [HttpPost]
-        public async Task<ActionResult<NewsResponse>> Create([FromBody] CreateNewsRequest request)
-        {
-            if (!ModelState.IsValid)
-                return ValidationProblem(ModelState);
-
-            var created = await _newsService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
-        }
-
-        /// <summary>
-        /// Updates an existing news entry.
-        /// Accepts a list of image URLs which will fully replace the existing images.
-        /// </summary>
-        [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateNewsRequest request)
-        {
-            if (!ModelState.IsValid)
-                return ValidationProblem(ModelState);
-
-            var success = await _newsService.UpdateAsync(id, request);
-            if (!success)
-                return NotFound();
-
-            return NoContent();
-        }
-
-        /// <summary>
-        /// Deletes an existing news entry and its related images.
-        /// </summary>
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var success = await _newsService.DeleteAsync(id);
-            if (!success)
-                return NotFound();
-
-            return NoContent();
-        }
-
-        // ==========================
-        // Create with file upload
-        // ==========================
-
-        /// <summary>
-        /// Creates a news entry and uploads image files (e.g. from phone or PC).
+        /// Creates a news entry and uploads image files
+        /// (user selects photos from device).
         /// Files are stored under wwwroot/uploads/news and exposed as URLs.
         /// </summary>
-        [HttpPost("with-files")]
-        [RequestSizeLimit(20_000_000)] // 20 MB total
-        public async Task<ActionResult<NewsResponse>> CreateWithFiles([FromForm] CreateNewsWithFilesDto dto)
+        [HttpPost]
+        [RequestSizeLimit(20_000_000)] // 20 MB
+        public async Task<ActionResult<NewsResponse>> Create([FromForm] CreateNewsWithFilesDto dto)
         {
             if (dto == null)
                 return BadRequest("Request body is empty.");
@@ -156,6 +110,7 @@ namespace NewsApi.Controllers
                 Title = dto.Title,
                 Content = dto.Content,
                 Author = dto.Author,
+                Category = dto.Category,
                 ImageUrls = imageUrls
             };
 
@@ -163,13 +118,56 @@ namespace NewsApi.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
-        // ==========================
-        // Search endpoints
-        // ==========================
+        /// <summary>
+        /// Updates an existing news entry.
+        /// Expects image URLs which will fully replace existing images.
+        /// (можеш потім зробити окремий PUT з файлами, якщо треба).
+        /// </summary>
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateNewsRequest request)
+        {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
+            var success = await _newsService.UpdateAsync(id, request);
+            if (!success)
+                return NotFound();
+
+            return NoContent();
+        }
 
         /// <summary>
-        /// Performs a combined search using optional filters:
-        /// text query, author, date range and sorting options.
+        /// Deletes an existing news entry and its related images.
+        /// </summary>
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var success = await _newsService.DeleteAsync(id);
+            if (!success)
+                return NotFound();
+
+            return NoContent();
+        }
+
+        [HttpGet("categories")]
+        public ActionResult<IEnumerable<CategoryDto>> GetCategories()
+        {
+            var categories = Enum.GetValues(typeof(NewsCategory))
+                .Cast<NewsCategory>()
+                .Select(c => new CategoryDto
+                {
+                    Name = c.ToString(),
+                    Value = (int)c
+                })
+                .ToList();
+
+            return Ok(categories);
+        }
+
+        // Search endpoints
+
+        /// <summary>
+        /// Combined search: text, author, date range, category, sorting.
         /// </summary>
         [HttpGet("search")]
         public async Task<ActionResult<IReadOnlyList<NewsResponse>>> Search(
@@ -177,6 +175,7 @@ namespace NewsApi.Controllers
             [FromQuery] string? author,
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
+            [FromQuery] NewsCategory? category,
             [FromQuery] string? sortBy,
             [FromQuery] bool sortDesc = true)
         {
@@ -185,6 +184,7 @@ namespace NewsApi.Controllers
                 author,
                 fromDate,
                 toDate,
+                category,
                 sortBy,
                 sortDesc);
 
@@ -234,6 +234,19 @@ namespace NewsApi.Controllers
             [FromQuery] bool sortDesc = true)
         {
             var result = await _newsSearchService.SearchByDateRangeAsync(fromDate, toDate, sortBy, sortDesc);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Retrieves all news that belong to a specific category.
+        /// </summary>
+        [HttpGet("search/by-category")]
+        public async Task<ActionResult<IReadOnlyList<NewsResponse>>> SearchByCategory(
+            [FromQuery] NewsCategory category,
+            [FromQuery] string? sortBy,
+            [FromQuery] bool sortDesc = true)
+        {
+            var result = await _newsSearchService.SearchByCategoryAsync(category, sortBy, sortDesc);
             return Ok(result);
         }
     }

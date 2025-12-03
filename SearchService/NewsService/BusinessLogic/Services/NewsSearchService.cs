@@ -27,13 +27,14 @@ namespace BusinessLogic.Services
 
         /// <summary>
         /// Performs a full combined search using optional text query, author filter, 
-        /// date range, and sorting options.
+        /// date range, category and sorting options.
         /// </summary>
         public async Task<IReadOnlyList<NewsResponse>> SearchAsync(
             string? query,
             string? author,
             DateTime? fromDate,
             DateTime? toDate,
+            NewsCategory? category,
             string? sortBy,
             bool sortDescending)
         {
@@ -42,6 +43,7 @@ namespace BusinessLogic.Services
             newsQuery = ApplyTextFilter(newsQuery, query);
             newsQuery = ApplyAuthorFilter(newsQuery, author);
             newsQuery = ApplyDateFilter(newsQuery, fromDate, toDate);
+            newsQuery = ApplyCategoryFilter(newsQuery, category);
             newsQuery = ApplySorting(newsQuery, sortBy, sortDescending);
 
             return await ExecuteAsync(newsQuery);
@@ -91,6 +93,22 @@ namespace BusinessLogic.Services
             var newsQuery = BaseQuery();
 
             newsQuery = ApplyDateFilter(newsQuery, fromDate, toDate);
+            newsQuery = ApplySorting(newsQuery, sortBy, sortDescending);
+
+            return await ExecuteAsync(newsQuery);
+        }
+
+        /// <summary>
+        /// Retrieves all news that belong to a specific category.
+        /// </summary>
+        public async Task<IReadOnlyList<NewsResponse>> SearchByCategoryAsync(
+            NewsCategory category,
+            string? sortBy,
+            bool sortDescending)
+        {
+            var newsQuery = BaseQuery();
+
+            newsQuery = ApplyCategoryFilter(newsQuery, category);
             newsQuery = ApplySorting(newsQuery, sortBy, sortDescending);
 
             return await ExecuteAsync(newsQuery);
@@ -147,6 +165,23 @@ namespace BusinessLogic.Services
             return query;
         }
 
+        private static IQueryable<News> ApplyCategoryFilter(
+            IQueryable<News> query,
+            NewsCategory? category)
+        {
+            if (!category.HasValue)
+                return query;
+
+            return query.Where(n => n.Category == category.Value);
+        }
+
+        private static IQueryable<News> ApplyCategoryFilter(
+            IQueryable<News> query,
+            NewsCategory category)
+        {
+            return query.Where(n => n.Category == category);
+        }
+
         private static IQueryable<News> ApplySorting(
             IQueryable<News> query,
             string? sortBy,
@@ -161,6 +196,9 @@ namespace BusinessLogic.Services
 
                 ("author", false) => query.OrderBy(n => n.Author),
                 ("author", true) => query.OrderByDescending(n => n.Author),
+
+                ("category", false) => query.OrderBy(n => n.Category),
+                ("category", true) => query.OrderByDescending(n => n.Category),
 
                 ("date", false) => query.OrderBy(n => n.PublishedAt),
                 ("date", true) => query.OrderByDescending(n => n.PublishedAt),

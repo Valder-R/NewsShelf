@@ -13,6 +13,8 @@ namespace DataAccess.Entities
 
         public string? Author { get; set; }
 
+        public NewsCategory Category { get; set; } = NewsCategory.Other;
+
         public ICollection<NewsImage> Images { get; set; } = new List<NewsImage>();
     }
 }

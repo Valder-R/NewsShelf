@@ -1,5 +1,6 @@
 ﻿
 using BusinessLogic.DTO;
+using DataAccess.Entities;
 
 namespace BusinessLogic.Contracts
 {
@@ -11,44 +12,59 @@ namespace BusinessLogic.Contracts
     public interface INewsSearchService
     {
         /// <summary>
-        /// Performs a combined search using optional filters such as text query, 
-        /// author name, date range, and sorting options.
+        /// Performs a combined search using optional filters:
+        /// text query, author, date range, category and sorting options.
         /// </summary>
+        /// <param name="query">Optional text query (title + content).</param>
+        /// <param name="author">Optional author name filter.</param>
+        /// <param name="fromDate">Optional start of date range.</param>
+        /// <param name="toDate">Optional end of date range.</param>
+        /// <param name="category">Optional news category filter.</param>
+        /// <param name="sortBy">
+        /// Sort field: "title", "author", "category", "date".
+        /// Defaults to "date" when null or unknown.
+        /// </param>
+        /// <param name="sortDescending">True to sort in descending order.</param>
         Task<IReadOnlyList<NewsResponse>> SearchAsync(
             string? query,
             string? author,
             DateTime? fromDate,
             DateTime? toDate,
+            NewsCategory? category,
             string? sortBy,
-            bool sortDescending
-        );
+            bool sortDescending);
 
         /// <summary>
-        /// Searches for news using text keywords in both the title and content.
+        /// Searches only by text keywords (title + content).
         /// </summary>
         Task<IReadOnlyList<NewsResponse>> SearchByTextAsync(
             string query,
             string? sortBy,
-            bool sortDescending
-        );
+            bool sortDescending);
 
         /// <summary>
-        /// Searches for news written by a specific author.
+        /// Searches only by author name.
         /// </summary>
         Task<IReadOnlyList<NewsResponse>> SearchByAuthorAsync(
             string author,
             string? sortBy,
-            bool sortDescending
-        );
+            bool sortDescending);
 
         /// <summary>
-        /// Searches for news published within a specified date range.
+        /// Searches only within a specific date range.
         /// </summary>
         Task<IReadOnlyList<NewsResponse>> SearchByDateRangeAsync(
             DateTime? fromDate,
             DateTime? toDate,
             string? sortBy,
-            bool sortDescending
-        );
+            bool sortDescending);
+
+        /// <summary>
+        /// Retrieves all news that belong to a specific category.
+        /// </summary>
+        Task<IReadOnlyList<NewsResponse>> SearchByCategoryAsync(
+            NewsCategory category,
+            string? sortBy,
+            bool sortDescending); 
     }
 }
