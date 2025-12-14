@@ -9,6 +9,7 @@
 .vscode/
 
 ## Ignore build results
+.idea/
 bin/
 obj/
 out/
