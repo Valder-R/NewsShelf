@@ -34,12 +34,14 @@ public class AuthController(
             return BadRequest(result.Errors.Select(e => e.Description));
         }
 
+        await userManager.AddToRoleAsync(user, "READER");
+
         if (request.FavoriteTopics is not null)
         {
             await activityService.SetFavoriteTopicsAsync(user.Id, request.FavoriteTopics, cancellationToken);
         }
 
-        var response = tokenService.GenerateAccessToken(user);
+        var response = await tokenService.GenerateAccessTokenAsync(user);
         return CreatedAtAction(nameof(Register), response);
     }
 
@@ -59,7 +61,7 @@ public class AuthController(
             return Unauthorized("Invalid credentials");
         }
 
-        return tokenService.GenerateAccessToken(user);
+        return await tokenService.GenerateAccessTokenAsync(user);
     }
 
     [HttpPost("external")]

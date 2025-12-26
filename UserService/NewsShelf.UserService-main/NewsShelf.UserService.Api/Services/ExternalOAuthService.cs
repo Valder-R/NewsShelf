@@ -42,6 +42,8 @@ public class ExternalOAuthService(
             {
                 throw new InvalidOperationException(string.Join(';', createResult.Errors.Select(e => e.Description)));
             }
+
+            await userManager.AddToRoleAsync(user, "READER");
         }
         
         var logins = await userManager.GetLoginsAsync(user);
@@ -54,6 +56,6 @@ public class ExternalOAuthService(
             }
         }
         
-        return tokenService.GenerateAccessToken(user);
+        return await tokenService.GenerateAccessTokenAsync(user);
     }
 }
