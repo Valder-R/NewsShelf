@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using NewsShelf.UserService.Api.Contracts.Auth;
+using NewsShelf.UserService.Api.Contracts.Events;
 using NewsShelf.UserService.Api.Models;
 using NewsShelf.UserService.Api.Services;
 
@@ -14,7 +15,8 @@ public class AuthController(
     SignInManager<ApplicationUser> signInManager,
     ITokenService tokenService,
     IExternalOAuthService externalOAuthService,
-    IActivityService activityService) : ControllerBase
+    IActivityService activityService,
+    IRabbitMqService rabbitMqService) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -40,6 +42,14 @@ public class AuthController(
         {
             await activityService.SetFavoriteTopicsAsync(user.Id, request.FavoriteTopics, cancellationToken);
         }
+
+        // Publish user registered event
+        await rabbitMqService.PublishAsync("news_events", new UserRegisteredEvent
+        {
+            UserId = user.Id,
+            Email = user.Email,
+            DisplayName = user.DisplayName ?? user.Email
+        });
 
         var response = await tokenService.GenerateAccessTokenAsync(user);
         return CreatedAtAction(nameof(Register), response);

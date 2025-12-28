@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewsShelf.UserService.Api.Contracts.Activity;
+using NewsShelf.UserService.Api.Contracts.Events;
 using NewsShelf.UserService.Api.Services;
 
 namespace NewsShelf.UserService.Api.Controllers;
@@ -9,18 +10,28 @@ namespace NewsShelf.UserService.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/activities")]
-public class ActivityController(IActivityService activityService) : ControllerBase
+public class ActivityController(IActivityService activityService, IRabbitMqService rabbitMqService) : ControllerBase
 {
     [HttpPost("read")]
-    public async Task<ActionResult<ActivityResponse>> RecordRead(RecordReadRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> RecordRead([FromBody] RecordReadRequest request, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null)
+        if (string.IsNullOrEmpty(userId))
         {
             return Unauthorized();
         }
 
         var activity = await activityService.RecordReadAsync(userId, request, cancellationToken);
+        
+        // Publish news read event
+        await rabbitMqService.PublishAsync("news_events", new NewsReadEvent
+        {
+            UserId = userId,
+            NewsId = request.NewsId,
+            Category = request.Topic ?? "GENERAL",
+            Timestamp = DateTime.UtcNow
+        });
+
         return Ok(activity);
     }
 
@@ -48,6 +59,15 @@ public class ActivityController(IActivityService activityService) : ControllerBa
         }
 
         var topics = await activityService.SetFavoriteTopicsAsync(userId, request.Topics, cancellationToken);
+        
+        // Publish favorite topic added event
+        await rabbitMqService.PublishAsync("news_events", new FavoriteTopicAddedEvent
+        {
+            UserId = userId,
+            Topics = topics.ToList(),
+            Timestamp = DateTime.UtcNow
+        });
+
         return Ok(topics);
     }
 

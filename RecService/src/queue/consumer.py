@@ -49,19 +49,31 @@ def callback(ch, method, properties, body):
     """
     try:
         event = json.loads(body)
-        logger.info(f"📩 Received event: {event}")
+        event_type = event.get("event") or event.get("EventType") or "unknown"
+        logger.info(f"📩 Received event: {event_type} - {event}")
         
         # Process different event types
-        if event.get("event") == "news_viewed":
+        if event_type in ["news_viewed", "NewsViewed"]:
             process_news_view(
-                user_id=event.get("user_id"),
-                news_id=event.get("news_id")
+                user_id=event.get("user_id") or event.get("UserId"),
+                news_id=event.get("news_id") or event.get("NewsId")
             )
-        elif event.get("event") == "news_liked":
-            logger.info(f"📌 User {event.get('user_id')} liked news {event.get('news_id')}")
-            # TODO: Implement like tracking
+            logger.info(f"✅ Processed news view: user={event.get('user_id')} news={event.get('news_id')}")
+        
+        elif event_type in ["user_registered", "UserRegistered"]:
+            logger.info(f"👤 User registered: {event.get('UserId')} - {event.get('Email')}")
+            # TODO: Initialize user recommendations
+        
+        elif event_type in ["favorite_topics_added", "FavoriteTopicAdded"]:
+            logger.info(f"⭐ Favorite topics added for user {event.get('UserId')}: {event.get('Topics')}")
+            # TODO: Update recommendations based on favorite topics
+        
+        elif event_type in ["news_searched", "NewsSearched"]:
+            logger.info(f"🔍 News search: user={event.get('UserId')} query={event.get('SearchQuery')}")
+            # TODO: Track search behavior for recommendations
+        
         else:
-            logger.warning(f"Unknown event type: {event.get('event')}")
+            logger.warning(f"Unknown event type: {event_type}")
         
         # Acknowledge message
         ch.basic_ack(delivery_tag=method.delivery_tag)

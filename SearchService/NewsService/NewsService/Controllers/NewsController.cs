@@ -3,6 +3,8 @@ using BusinessLogic.DTO;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Mvc;
 using NewsApi.Dto;
+using NewsService.Dto.Events;
+using NewsService.Services;
 
 
 namespace NewsApi.Controllers
@@ -14,15 +16,18 @@ namespace NewsApi.Controllers
         private readonly INewsService _newsService;
         private readonly INewsSearchService _newsSearchService;
         private readonly IWebHostEnvironment _env;
+        private readonly IRabbitMqService _rabbitMqService;
 
         public NewsController(
             INewsService newsService,
             INewsSearchService newsSearchService,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            IRabbitMqService rabbitMqService)
         {
             _newsService = newsService;
             _newsSearchService = newsSearchService;
             _env = env;
+            _rabbitMqService = rabbitMqService;
         }
 
         // ==========================
@@ -177,7 +182,8 @@ namespace NewsApi.Controllers
             [FromQuery] DateTime? toDate,
             [FromQuery] NewsCategory? category,
             [FromQuery] string? sortBy,
-            [FromQuery] bool sortDesc = true)
+            [FromQuery] bool sortDesc = true,
+            [FromQuery] string? userId = null)
         {
             var result = await _newsSearchService.SearchAsync(
                 query,
@@ -188,22 +194,45 @@ namespace NewsApi.Controllers
                 sortBy,
                 sortDesc);
 
+            // Publish search event if user is authenticated
+            if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(query))
+            {
+                await _rabbitMqService.PublishAsync("news_searched", new NewsSearchedEvent
+                {
+                    SearchQuery = query,
+                    UserId = userId,
+                    ResultCount = result?.Count ?? 0,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
             return Ok(result);
         }
 
-        /// <summary>
-        /// Searches news only by text (title + content).
-        /// </summary>
         [HttpGet("search/by-text")]
         public async Task<ActionResult<IReadOnlyList<NewsResponse>>> SearchByText(
             [FromQuery] string query,
             [FromQuery] string? sortBy,
-            [FromQuery] bool sortDesc = true)
+            [FromQuery] bool sortDesc = true,
+            [FromQuery] string? userId = null)
         {
             if (string.IsNullOrWhiteSpace(query))
                 return BadRequest("Query parameter is required.");
 
             var result = await _newsSearchService.SearchByTextAsync(query, sortBy, sortDesc);
+            
+            // Publish search event
+            if (!string.IsNullOrEmpty(userId))
+            {
+                await _rabbitMqService.PublishAsync("news_events", new NewsSearchedEvent
+                {
+                    SearchQuery = query,
+                    UserId = userId,
+                    ResultCount = result?.Count ?? 0,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
             return Ok(result);
         }
 

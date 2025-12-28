@@ -16,7 +16,7 @@ class Settings:
     # Database
     database_url: str = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/recommendations"
+        "postgresql://postgres:postgres@postgres:5432/recommendations"
     )
     
     # RabbitMQ

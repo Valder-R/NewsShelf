@@ -1,0 +1,79 @@
+---
+# Recommendation Service ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rec-service-config
+  namespace: newsshelf
+data:
+  POSTGRES_HOST: postgres
+  POSTGRES_DB: recommendations
+  POSTGRES_USER: postgres
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  PYTHONUNBUFFERED: "1"
+
+---
+# Recommendation Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rec-service
+  namespace: newsshelf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rec-service
+  template:
+    metadata:
+      labels:
+        app: rec-service
+    spec:
+      containers:
+        - name: rec-service
+          image: rec-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: rec-service-config
+          env:
+            - name: POSTGRES_PASSWORD
+              value: postgres
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 30
+            periodSeconds: 5
+
+---
+# Recommendation Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rec-service
+  namespace: newsshelf
+spec:
+  selector:
+    app: rec-service
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetPort: 8001
+  type: ClusterIP
