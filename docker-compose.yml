@@ -1,33 +1,133 @@
-version: '3.9'
-
 services:
-  # PostgreSQL for News and User data
-  postgres:
-    image: postgres:15-alpine
-    container_name: newsshelf_postgres
+  # =========================
+  # ADMIN (Spring) + Postgres
+  # =========================
+  admin-db:
+    image: postgres:16
+    container_name: news_shelf_admin_db
     environment:
-      POSTGRES_DB: newsshelf
+      POSTGRES_DB: news_shelf_admin
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"   # можна прибрати якщо не треба доступ з хоста
+    volumes:
+      - admin_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d news_shelf_admin"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  admin-service:
+    build:
+      context: ./AdminService
+      dockerfile: Dockerfile
+    container_name: news_shelf_admin_service
+    depends_on:
+      admin-db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://admin-db:5432/news_shelf_admin
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+    ports:
+      - "8080:8080"
+
+  # =========================
+  # SEARCH (ASP.NET) + Postgres
+  # =========================
+  search-db:
+    image: postgres:15-alpine
+    container_name: news_shelf_search_db
+    environment:
+      POSTGRES_DB: news_shelf_search
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"   # можна прибрати якщо не треба доступ з хоста
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - newsshelf_network
+      - search_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U postgres -d news_shelf_search"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
-  # SQLite for User Service (embedded)
-  # No container needed - uses embedded SQLite
+  search-service:
+    build:
+      context: .
+      dockerfile: SearchService/Dockerfile
+    container_name: news_shelf_search_service
+    depends_on:
+      search-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=search-db;Port=5432;Database=news_shelf_search;Username=postgres;Password=postgres"
+      RabbitMq__Hostname: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest
+    ports:
+      - "5002:5002"
 
-  # RabbitMQ for message queue
+  # =========================
+  # REC (Python) + Postgres
+  # =========================
+  rec-db:
+    image: postgres:15-alpine
+    container_name: news_shelf_rec_db
+    environment:
+      POSTGRES_DB: news_shelf_rec
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"   # можна прибрати якщо не треба доступ з хоста
+    volumes:
+      - rec_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d news_shelf_rec"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  rec-service:
+    build:
+      context: ./RecService
+      dockerfile: Dockerfile
+    container_name: news_shelf_rec_service
+    depends_on:
+      rec-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    environment:
+      # головне: щоб код не брав localhost
+      DATABASE_URL: "postgresql+psycopg2://postgres:postgres@rec-db:5432/news_shelf_rec"
+
+      # якщо твоєму коду треба саме ці змінні — лишаємо
+      POSTGRES_HOST: rec-db
+      POSTGRES_DB: news_shelf_rec
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8001:8001"
+    volumes:
+      - rec_logs:/app/logs
+
+  # =========================
+  # RABBITMQ (shared)
+  # =========================
   rabbitmq:
     image: rabbitmq:3.12-management-alpine
-    container_name: newsshelf_rabbitmq
+    container_name: news_shelf_rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -36,20 +136,18 @@ services:
       - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - newsshelf_network
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
-  # User Service (ASP.NET Core)
+  # =========================
+  # USER (ASP.NET) + SQLite
+  # =========================
   user-service:
     build:
       context: .
       dockerfile: UserService/Dockerfile
-    container_name: newsshelf_user_service
+    container_name: news_shelf_user_service
+    depends_on:
+      rabbitmq:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__UserDb: "Data Source=/data/users.db"
@@ -58,127 +156,44 @@ services:
       RabbitMq__Port: 5672
       RabbitMq__Username: guest
       RabbitMq__Password: guest
+      OAuth__Enabled: "false"
+
     ports:
       - "5001:5001"
     volumes:
       - user_data:/data
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - newsshelf_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # Search Service (ASP.NET Core)
-  search-service:
-    build:
-      context: .
-      dockerfile: SearchService/Dockerfile
-    container_name: newsshelf_search_service
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Server=postgres;Database=newsshelf;User Id=postgres;Password=postgres;MultipleActiveResultSets=true"
-      RabbitMq__Hostname: rabbitmq
-      RabbitMq__Port: 5672
-      RabbitMq__Username: guest
-      RabbitMq__Password: guest
-    ports:
-      - "5002:5002"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - newsshelf_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Recommendation Service (Python)
-  rec-service:
-    build:
-      context: ./RecService
-      dockerfile: Dockerfile
-    container_name: newsshelf_rec_service
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_DB: recommendations
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      PYTHONUNBUFFERED: 1
-    ports:
-      - "8001:8001"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    volumes:
-      - rec_logs:/app/logs
-    networks:
-      - newsshelf_network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8001/health', timeout=5)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Frontend (React + Nginx)
-  frontend:
-    build:
-      context: ./Frontend
-      dockerfile: Dockerfile
-    container_name: newsshelf_frontend
-    ports:
-      - "3000:80"
-    environment:
-      VITE_API_URL: http://localhost:5000/api
+  # =========================
+  # GATEWAY + FRONTEND
+  # =========================
+  gateway:
+    image: nginx:alpine
+    container_name: news_shelf_gateway
     depends_on:
       - user-service
       - search-service
       - rec-service
-    networks:
-      - newsshelf_network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    ports:
+      - "5000:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
 
-  # API Gateway (optional, can be added later)
-  # gateway:
-  #   image: nginx:alpine
-  #   container_name: newsshelf_gateway
-  #   ports:
-  #     - "5000:80"
-  #   volumes:
-  #     - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
-  #   depends_on:
-  #     - user-service
-  #     - search-service
-  #     - rec-service
-  #   networks:
-  #     - newsshelf_network
-
-networks:
-  newsshelf_network:
-    driver: bridge
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: news_shelf_frontend
+    depends_on:
+      - gateway
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_URL: "http://localhost:5000/api"
 
 volumes:
-  postgres_data:
-    driver: local
+  admin_db_data:
+  search_db_data:
+  rec_db_data:
   rabbitmq_data:
-    driver: local
   user_data:
-    driver: local
   rec_logs:
-    driver: local

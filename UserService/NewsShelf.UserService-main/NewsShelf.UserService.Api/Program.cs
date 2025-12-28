@@ -33,7 +33,25 @@ builder.Services.AddScoped<IExternalTokenProvider, GoogleTokenProvider>();
 builder.Services.AddScoped<IExternalOAuthService, ExternalOAuthService>();
 builder.Services.AddSingleton<IRabbitMqService, RabbitMqService>();
 
-builder.Services.AddAuthentication(options =>
+// ======================
+// OAuth safe toggle (Docker-friendly)
+// ======================
+var oauthEnabled = builder.Configuration.GetValue<bool>("OAuth:Enabled");
+
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+
+// Auto-disable OAuth if secrets are missing (avoid crash on startup)
+if (oauthEnabled && (string.IsNullOrWhiteSpace(googleClientId) || string.IsNullOrWhiteSpace(googleClientSecret)))
+{
+    oauthEnabled = false;
+    Console.WriteLine("⚠️ Google OAuth disabled: missing Authentication:Google:ClientId or ClientSecret");
+}
+
+// ======================
+// Auth
+// ======================
+var auth = builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -41,6 +59,7 @@ builder.Services.AddAuthentication(options =>
     .AddJwtBearer(options =>
     {
         var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -53,15 +72,21 @@ builder.Services.AddAuthentication(options =>
             RoleClaimType = System.Security.Claims.ClaimTypes.Role,
             NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
         };
-    })
-    .AddGoogle(options =>
+    });
+
+if (oauthEnabled)
+{
+    auth.AddGoogle(options =>
     {
         builder.Configuration.GetSection("Authentication:Google").Bind(options);
     });
+}
 
 builder.Services.AddAuthorization();
 
-// Add CORS
+// ======================
+// CORS
+// ======================
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -95,15 +120,15 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityDefinition("Bearer", securityScheme);
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        {
-            securityScheme,
-            Array.Empty<string>()
-        }
+        { securityScheme, Array.Empty<string>() }
     });
 });
 
 var app = builder.Build();
 
+// ======================
+// Ensure SQLite directory exists (from ConnectionStrings:UserDb)
+// ======================
 var connectionString = app.Configuration.GetConnectionString("UserDb");
 if (!string.IsNullOrEmpty(connectionString))
 {
@@ -111,18 +136,18 @@ if (!string.IsNullOrEmpty(connectionString))
     if (dataSourceIndex >= 0)
     {
         var dbPath = connectionString.Substring(dataSourceIndex + "Data Source=".Length).Trim();
-        
+
         var semicolonIndex = dbPath.IndexOf(';');
         if (semicolonIndex >= 0)
         {
             dbPath = dbPath.Substring(0, semicolonIndex).Trim();
         }
-        
+
         if (!Path.IsPathRooted(dbPath))
         {
             dbPath = Path.Combine(app.Environment.ContentRootPath, dbPath);
         }
-        
+
         var dbDirectory = Path.GetDirectoryName(dbPath);
         if (!string.IsNullOrEmpty(dbDirectory) && !Directory.Exists(dbDirectory))
         {
@@ -131,9 +156,13 @@ if (!string.IsNullOrEmpty(connectionString))
     }
 }
 
+// Extra folder if you want it (safe)
 var dataDirectory = Path.Combine(app.Environment.ContentRootPath, "Data");
 Directory.CreateDirectory(dataDirectory);
 
+// ======================
+// Migrations + seed roles/admin
+// ======================
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -151,7 +180,6 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    // Створюємо адміністратора якщо його ще немає
     var adminEmail = app.Configuration["Admin:Email"] ?? "admin@newsshelf.com";
     var adminPassword = app.Configuration["Admin:Password"] ?? "Admin123!";
     var adminDisplayName = app.Configuration["Admin:DisplayName"] ?? "System Administrator";
@@ -192,5 +220,6 @@ app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 app.Run();
