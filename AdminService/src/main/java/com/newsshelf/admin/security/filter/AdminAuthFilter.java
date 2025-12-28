@@ -58,13 +58,15 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             var principal = new AdminPrincipal(payload.userId(), payload.roles());
 
             var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
-            auth.setDetails(rawToken);
             SecurityContextHolder.getContext().setAuthentication(auth);
+
+            log.debug("AUTH OK userId={} roles={} method={} path={}",
+                    payload.userId(), payload.roles(), method, path);
 
             filterChain.doFilter(request, response);
 
         } catch (RuntimeException ex) {
-            log.warn("Authentication failed. {} {} -> {}", method, path, ex.getMessage());
+            log.warn("AUTH FAIL method={} path={} reason={}", method, path, ex.getMessage());
             throw ex;
         }
     }

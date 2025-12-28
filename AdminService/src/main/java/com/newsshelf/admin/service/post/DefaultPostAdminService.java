@@ -27,17 +27,16 @@ public class DefaultPostAdminService implements PostAdminService {
         this.adminActionService = adminActionService;
     }
 
-
     @Override
     public void deletePost(String postId) {
-        log.info("Deleting post via NewsService. postId={}", postId);
+        log.info("deletePost start postId={}", postId);
 
         final int id;
         try {
             id = Integer.parseInt(postId);
         } catch (NumberFormatException ex) {
-            log.warn("Invalid postId (not int): {}", postId);
             adminActionService.log(ActionType.DELETE_POST, TargetType.POST, postId, ActionStatus.FAILED);
+            log.warn("deletePost invalid postId postId={}", postId);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "postId must be integer");
         }
 
@@ -46,33 +45,32 @@ public class DefaultPostAdminService implements PostAdminService {
                     .uri("/api/news/{id}", id)
                     .retrieve()
                     .onStatus(s -> s.value() == 404, (req, res) -> {
-                        log.info("Post not found in NewsService. postId={}", id);
                         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "News not found");
                     })
                     .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        log.warn("NewsService 4xx on deletePost. postId={} status={}", id, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                 "NewsApi rejected request: " + res.getStatusCode());
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-                        log.error("NewsService 5xx on deletePost. postId={} status={}", id, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                                 "NewsApi unavailable: " + res.getStatusCode());
                     })
                     .toBodilessEntity();
 
             adminActionService.log(ActionType.DELETE_POST, TargetType.POST, postId, ActionStatus.SUCCESS);
-            log.info("Post deleted successfully. postId={}", postId);
+            log.info("deletePost success postId={} id={}", postId, id);
 
         } catch (ResponseStatusException e) {
             adminActionService.log(ActionType.DELETE_POST, TargetType.POST, postId, ActionStatus.FAILED);
+            log.warn("deletePost fail postId={} id={} status={} reason={}",
+                    postId, id, e.getStatusCode(), e.getReason());
             throw e;
 
         } catch (Exception e) {
-            log.error("Failed to call NewsService for deletePost. postId={}", id, e);
             adminActionService.log(ActionType.DELETE_POST, TargetType.POST, postId, ActionStatus.FAILED);
+            log.error("deletePost error postId={} id={}", postId, id, e);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to call NewsApi", e);
         }
     }
-
 }
+

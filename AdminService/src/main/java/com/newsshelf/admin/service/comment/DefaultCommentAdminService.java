@@ -29,13 +29,13 @@ public class DefaultCommentAdminService implements CommentAdminService {
 
     @Override
     public void deleteComment(String commentId) {
-        log.info("Deleting comment via CommentService. commentId={}", commentId);
+        log.info("deleteComment start commentId={}", commentId);
 
         final int id;
         try {
             id = Integer.parseInt(commentId);
         } catch (NumberFormatException ex) {
-            log.warn("Invalid commentId (not int): {}", commentId);
+            log.warn("deleteComment invalid commentId (not int) commentId={}", commentId);
             adminActionService.log(ActionType.DELETE_COMMENT, TargetType.COMMENT, commentId, ActionStatus.FAILED);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "commentId must be integer");
         }
@@ -45,30 +45,30 @@ public class DefaultCommentAdminService implements CommentAdminService {
                     .uri("/api/comments/{id}", id)
                     .retrieve()
                     .onStatus(s -> s.value() == 404, (req, res) -> {
-                        log.info("Comment not found in CommentService. commentId={}", id);
                         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found");
                     })
                     .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        log.warn("CommentService 4xx on deleteComment. commentId={} status={}", id, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                 "CommentService rejected request: " + res.getStatusCode());
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-                        log.error("CommentService 5xx on deleteComment. commentId={} status={}", id, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                                 "CommentService unavailable: " + res.getStatusCode());
                     })
                     .toBodilessEntity();
 
             adminActionService.log(ActionType.DELETE_COMMENT, TargetType.COMMENT, commentId, ActionStatus.SUCCESS);
-            log.info("Comment deleted successfully. commentId={}", commentId);
+            log.info("deleteComment success commentId={} id={}", commentId, id);
 
         } catch (ResponseStatusException e) {
             adminActionService.log(ActionType.DELETE_COMMENT, TargetType.COMMENT, commentId, ActionStatus.FAILED);
+            log.warn("deleteComment fail commentId={} id={} status={} reason={}",
+                    commentId, id, e.getStatusCode(), e.getReason());
             throw e;
+
         } catch (Exception e) {
-            log.error("Failed to call CommentService for deleteComment. commentId={}", id, e);
             adminActionService.log(ActionType.DELETE_COMMENT, TargetType.COMMENT, commentId, ActionStatus.FAILED);
+            log.error("deleteComment error commentId={} id={}", commentId, id, e);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to call CommentService", e);
         }
     }

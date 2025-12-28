@@ -33,10 +33,11 @@ public class DefaultUserAdminService implements UserAdminService {
 
     @Override
     public void assignRole(String userId, AssignRoleRequest request) {
-        log.info("Assigning role via UserService. userId={} request={}", userId, request);
+        String role = request == null ? null : String.valueOf(request.role());
+        log.info("assignRole start userId={} role={}", userId, role);
 
-        if (request == null || request.role() == null) {
-            log.warn("Role is missing for assignRole. userId={}", userId);
+        if (role == null || role.isBlank()) {
+            log.warn("assignRole invalid role userId={} role={}", userId, role);
             adminActionService.log(ActionType.ASSIGN_ROLE, TargetType.USER, userId, ActionStatus.FAILED);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "role is required");
         }
@@ -47,37 +48,37 @@ public class DefaultUserAdminService implements UserAdminService {
                     .body(request)
                     .retrieve()
                     .onStatus(s -> s.value() == 404, (req, res) -> {
-                        log.info("User not found in UserService. userId={}", userId);
                         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
                     })
                     .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        log.warn("UserService 4xx on assignRole. userId={} status={}", userId, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                 "UserService rejected request: " + res.getStatusCode());
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-                        log.error("UserService 5xx on assignRole. userId={} status={}", userId, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                                 "UserService unavailable: " + res.getStatusCode());
                     })
                     .toBodilessEntity();
 
             adminActionService.log(ActionType.ASSIGN_ROLE, TargetType.USER, userId, ActionStatus.SUCCESS);
-            log.info("Role assigned successfully. userId={}", userId);
+            log.info("assignRole success userId={} role={}", userId, role);
 
         } catch (ResponseStatusException e) {
             adminActionService.log(ActionType.ASSIGN_ROLE, TargetType.USER, userId, ActionStatus.FAILED);
+            log.warn("assignRole fail userId={} role={} status={} reason={}",
+                    userId, role, e.getStatusCode(), e.getReason());
             throw e;
+
         } catch (Exception e) {
-            log.error("Failed to call UserService for assignRole. userId={}", userId, e);
             adminActionService.log(ActionType.ASSIGN_ROLE, TargetType.USER, userId, ActionStatus.FAILED);
+            log.error("assignRole error userId={} role={}", userId, role, e);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to call UserService", e);
         }
     }
 
     @Override
     public ListUsersResponse listUsers(String role, String status) {
-        log.info("Listing users via UserService. role={} status={}", role, status);
+        log.info("listUsers start role={} status={}", role, status);
 
         try {
             ListUsersResponse body = userServiceClient.get()
@@ -88,65 +89,66 @@ public class DefaultUserAdminService implements UserAdminService {
                             .build())
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        log.warn("UserService 4xx on listUsers. role={} status={} http={}", role, status, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                 "UserService rejected request: " + res.getStatusCode());
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-                        log.error("UserService 5xx on listUsers. role={} status={} http={}", role, status, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                                 "UserService unavailable: " + res.getStatusCode());
                     })
                     .body(ListUsersResponse.class);
 
             if (body == null) {
-                log.error("UserService returned empty body on listUsers. role={} status={}", role, status);
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "UserService returned empty body");
             }
 
+            log.info("listUsers success role={} status={}", role, status);
             return body;
 
         } catch (ResponseStatusException e) {
+            log.warn("listUsers fail role={} status={} statusCode={} reason={}",
+                    role, status, e.getStatusCode(), e.getReason());
             throw e;
+
         } catch (Exception e) {
-            log.error("Failed to call UserService for listUsers. role={} status={}", role, status, e);
+            log.error("listUsers error role={} status={}", role, status, e);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to call UserService", e);
         }
     }
 
     @Override
     public void deleteUser(String userId) {
-        log.info("Deleting user via UserService. userId={}", userId);
+        log.info("deleteUser start userId={}", userId);
 
         try {
             userServiceClient.delete()
                     .uri("/api/users/{id}", userId)
                     .retrieve()
                     .onStatus(s -> s.value() == 404, (req, res) -> {
-                        log.info("User not found in UserService. userId={}", userId);
                         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
                     })
                     .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        log.warn("UserService 4xx on deleteUser. userId={} status={}", userId, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                 "UserService rejected request: " + res.getStatusCode());
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-                        log.error("UserService 5xx on deleteUser. userId={} status={}", userId, res.getStatusCode());
                         throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                                 "UserService unavailable: " + res.getStatusCode());
                     })
                     .toBodilessEntity();
 
             adminActionService.log(ActionType.DELETE_USER, TargetType.USER, userId, ActionStatus.SUCCESS);
-            log.info("User deleted successfully. userId={}", userId);
+            log.info("deleteUser success userId={}", userId);
 
         } catch (ResponseStatusException e) {
             adminActionService.log(ActionType.DELETE_USER, TargetType.USER, userId, ActionStatus.FAILED);
+            log.warn("deleteUser fail userId={} status={} reason={}",
+                    userId, e.getStatusCode(), e.getReason());
             throw e;
+
         } catch (Exception e) {
-            log.error("Failed to call UserService for deleteUser. userId={}", userId, e);
             adminActionService.log(ActionType.DELETE_USER, TargetType.USER, userId, ActionStatus.FAILED);
+            log.error("deleteUser error userId={}", userId, e);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to call UserService", e);
         }
     }

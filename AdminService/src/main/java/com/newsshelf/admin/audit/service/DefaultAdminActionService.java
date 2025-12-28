@@ -7,11 +7,13 @@ import com.newsshelf.admin.audit.model.TargetType;
 import com.newsshelf.admin.audit.repository.AdminActionRepository;
 import com.newsshelf.admin.security.principal.AdminPrincipal;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DefaultAdminActionService implements AdminActionService {
@@ -20,14 +22,22 @@ public class DefaultAdminActionService implements AdminActionService {
 
     @Override
     public void log(ActionType action, TargetType targetType, String targetId, ActionStatus status) {
-        actionRepository.save(AdminAction.builder()
-                .actorUserId(currentUserId())
-                .action(action.name())
-                .targetType(targetType.name())
-                .targetId(targetId)
-                .status(status.name())
-                .createdAt(Instant.now())
-                .build());
+        try {
+            actionRepository.save(AdminAction.builder()
+                    .actorUserId(currentUserId())
+                    .action(action.name())
+                    .targetType(targetType.name())
+                    .targetId(targetId)
+                    .status(status.name())
+                    .createdAt(Instant.now())
+                    .build());
+
+            log.debug("audit saved action={} targetType={} targetId={} status={}", action, targetType, targetId, status);
+
+        } catch (Exception e) {
+            log.warn("audit save failed action={} targetType={} targetId={} status={} reason={}",
+                    action, targetType, targetId, status, e.getMessage());
+        }
     }
 
     private String currentUserId() {
