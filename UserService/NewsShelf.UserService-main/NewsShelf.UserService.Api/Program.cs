@@ -48,7 +48,9 @@ builder.Services.AddAuthentication(options =>
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtOptions.Issuer,
             ValidAudience = jwtOptions.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
         };
     })
     .AddGoogle(options =>
@@ -88,6 +90,34 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+var connectionString = app.Configuration.GetConnectionString("UserDb");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    var dataSourceIndex = connectionString.IndexOf("Data Source=", StringComparison.OrdinalIgnoreCase);
+    if (dataSourceIndex >= 0)
+    {
+        var dbPath = connectionString.Substring(dataSourceIndex + "Data Source=".Length).Trim();
+        
+        var semicolonIndex = dbPath.IndexOf(';');
+        if (semicolonIndex >= 0)
+        {
+            dbPath = dbPath.Substring(0, semicolonIndex).Trim();
+        }
+        
+        if (!Path.IsPathRooted(dbPath))
+        {
+            dbPath = Path.Combine(app.Environment.ContentRootPath, dbPath);
+        }
+        
+        var dbDirectory = Path.GetDirectoryName(dbPath);
+        if (!string.IsNullOrEmpty(dbDirectory) && !Directory.Exists(dbDirectory))
+        {
+            Directory.CreateDirectory(dbDirectory);
+        }
+    }
+}
+
 var dataDirectory = Path.Combine(app.Environment.ContentRootPath, "Data");
 Directory.CreateDirectory(dataDirectory);
 
@@ -95,6 +125,48 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    var roles = new[] { "ADMIN", "MODERATOR", "READER" };
+    foreach (var roleName in roles)
+    {
+        if (!await roleManager.RoleExistsAsync(roleName))
+        {
+            await roleManager.CreateAsync(new IdentityRole(roleName));
+        }
+    }
+
+    // Створюємо адміністратора якщо його ще немає
+    var adminEmail = app.Configuration["Admin:Email"] ?? "admin@newsshelf.com";
+    var adminPassword = app.Configuration["Admin:Password"] ?? "Admin123!";
+    var adminDisplayName = app.Configuration["Admin:DisplayName"] ?? "System Administrator";
+
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    if (adminUser == null)
+    {
+        adminUser = new ApplicationUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            EmailConfirmed = true,
+            DisplayName = adminDisplayName
+        };
+
+        var createResult = await userManager.CreateAsync(adminUser, adminPassword);
+        if (createResult.Succeeded)
+        {
+            await userManager.AddToRoleAsync(adminUser, "ADMIN");
+        }
+    }
+    else
+    {
+        if (!await userManager.IsInRoleAsync(adminUser, "ADMIN"))
+        {
+            await userManager.AddToRoleAsync(adminUser, "ADMIN");
+        }
+    }
 }
 
 if (app.Environment.IsDevelopment())

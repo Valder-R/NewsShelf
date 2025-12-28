@@ -1,3 +1,75 @@
+## Ignore Visual Studio user-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Ignore Visual Studio cache
+.vs/
+.vscode/
 .venv/
 
-.vscode/
+## Ignore build results
+bin/
+obj/
+out/
+artifacts/
+
+## Ignore ASP.NET Core environment-specific files
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.json
+
+## Ignore IIS Express settings
+iisexpress/
+
+## Ignore temporary files
+*_i.c
+*_p.c
+*.cache
+*.log
+*.tlog
+
+## Ignore database files
+*.mdf
+*.ldf
+*.db
+*.db-wal
+*.db-shm
+
+## Ignore Visual Studio SQLite index files
+FileContentIndex/
+**/FileContentIndex/
+*.vsidx
+
+## Ignore Resharper, Rider
+_ReSharper*/
+*.DotSettings.user
+
+## Ignore NuGet
+*.nupkg
+packages/
+*.snupkg
+
+## Ignore node modules (for front-end parts)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+## Ignore front-end build output
+dist/
+build/
+coverage/
+
+## Ignore logs
+*.log
+
+## Ignore misc
+*.tmp
+*.temp
+*.bak
+
+## Ignore publish output
+wwwroot/
+publish/

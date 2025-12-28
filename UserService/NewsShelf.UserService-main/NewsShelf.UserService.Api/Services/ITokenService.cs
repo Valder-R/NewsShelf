@@ -5,5 +5,5 @@ namespace NewsShelf.UserService.Api.Services;
 
 public interface ITokenService
 {
-    AuthResponse GenerateAccessToken(ApplicationUser user);
+    Task<AuthResponse> GenerateAccessTokenAsync(ApplicationUser user);
 }
