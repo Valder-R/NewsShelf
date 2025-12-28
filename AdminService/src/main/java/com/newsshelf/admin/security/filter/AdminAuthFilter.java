@@ -11,7 +11,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,44 +35,31 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        var existing = SecurityContextHolder.getContext().getAuthentication();
-
-        if (existing != null
-                && existing.isAuthenticated()
-                && !(existing instanceof AnonymousAuthenticationToken)) {
-            log.debug("Auth already present (non-anonymous), skipping token auth. {} {}", method, path);
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
             filterChain.doFilter(request, response);
             return;
         }
 
         var tokenOpt = TokenExtractor.extractBearer(request);
         if (tokenOpt.isEmpty()) {
-            log.debug("No Bearer token found. {} {}", method, path);
             filterChain.doFilter(request, response);
             return;
         }
 
         String rawToken = tokenOpt.get();
-        log.debug("Bearer token found (len={}). {} {}", rawToken.length(), method, path);
 
         try {
             AuthPayload payload = tokenAuthService.authenticate(rawToken);
 
             var authorities = payload.roles().stream()
-                    .map(r -> "ROLE_" + r)
-                    .map(SimpleGrantedAuthority::new)
+                    .map(r -> new SimpleGrantedAuthority("ROLE_" + r.name()))
                     .collect(Collectors.toSet());
 
             var principal = new AdminPrincipal(payload.userId(), payload.roles());
 
-            var auth = UsernamePasswordAuthenticationToken.authenticated(principal, null, authorities);
-
+            var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
             auth.setDetails(rawToken);
-
             SecurityContextHolder.getContext().setAuthentication(auth);
-
-            log.info("Authenticated admin userId={} roles={} authorities={}",
-                    payload.userId(), payload.roles(), authorities);
 
             filterChain.doFilter(request, response);
 

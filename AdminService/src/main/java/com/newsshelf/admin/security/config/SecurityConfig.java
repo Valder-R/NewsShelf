@@ -32,10 +32,13 @@ public class SecurityConfig {
     @Value("${security.jwt.roles-claim:roles}")
     private String rolesClaim;
 
+    @Value("${security.jwt.roles-claim-aliases:}")
+    private String rolesClaimAliases;
+
     @Bean
     public TokenAuthService tokenAuthService() {
         var verifier = new JwtVerifier(secret, issuer);
-        var parser = new JwtClaimsParser(rolesClaim);
+        var parser = new JwtClaimsParser(rolesClaim, rolesClaimAliases);
         return new JwtTokenAuthService(verifier, parser);
     }
 
@@ -49,9 +52,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
                         .requestMatchers("/error").permitAll()
-
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "MODERATOR")
+                        .requestMatchers("/api/v1/admin/comments/**").hasAnyRole("ADMIN", "PUBLISHER")
+                        .requestMatchers("/api/v1/admin/posts/**").hasAnyRole("ADMIN", "PUBLISHER")
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new AdminAuthFilter(tokenAuthService), UsernamePasswordAuthenticationFilter.class)

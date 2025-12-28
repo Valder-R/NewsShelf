@@ -1,5 +1,9 @@
 package com.newsshelf.admin.service.post;
 
+import com.newsshelf.admin.audit.model.ActionStatus;
+import com.newsshelf.admin.audit.model.ActionType;
+import com.newsshelf.admin.audit.model.TargetType;
+import com.newsshelf.admin.audit.service.AdminActionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -13,11 +17,14 @@ import org.springframework.web.server.ResponseStatusException;
 public class DefaultPostAdminService implements PostAdminService {
 
     private final RestClient newsServiceClient;
+    private final AdminActionService adminActionService;
 
     public DefaultPostAdminService(
-            @Qualifier("newsServiceClient") RestClient newsServiceClient
+            @Qualifier("newsServiceClient") RestClient newsServiceClient,
+            AdminActionService adminActionService
     ) {
         this.newsServiceClient = newsServiceClient;
+        this.adminActionService = adminActionService;
     }
 
 
@@ -30,6 +37,7 @@ public class DefaultPostAdminService implements PostAdminService {
             id = Integer.parseInt(postId);
         } catch (NumberFormatException ex) {
             log.warn("Invalid postId (not int): {}", postId);
+            adminActionService.log(ActionType.DELETE_POST, TargetType.POST, postId, ActionStatus.FAILED);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "postId must be integer");
         }
 
@@ -53,13 +61,18 @@ public class DefaultPostAdminService implements PostAdminService {
                     })
                     .toBodilessEntity();
 
-            log.info("Post deleted successfully. postId={}", id);
+            adminActionService.log(ActionType.DELETE_POST, TargetType.POST, postId, ActionStatus.SUCCESS);
+            log.info("Post deleted successfully. postId={}", postId);
 
         } catch (ResponseStatusException e) {
+            adminActionService.log(ActionType.DELETE_POST, TargetType.POST, postId, ActionStatus.FAILED);
             throw e;
+
         } catch (Exception e) {
             log.error("Failed to call NewsService for deletePost. postId={}", id, e);
+            adminActionService.log(ActionType.DELETE_POST, TargetType.POST, postId, ActionStatus.FAILED);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Failed to call NewsApi", e);
         }
     }
+
 }

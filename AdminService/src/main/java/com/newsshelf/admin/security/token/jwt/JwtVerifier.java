@@ -19,7 +19,7 @@ public class JwtVerifier {
         this.issuer = issuer;
     }
 
-    public Claims verifyAndGetClaims(String token) {
+    public Claims verify(String token) {
         JwtParserBuilder builder = Jwts.parserBuilder().setSigningKey(key);
 
         if (issuer != null && !issuer.isBlank()) {

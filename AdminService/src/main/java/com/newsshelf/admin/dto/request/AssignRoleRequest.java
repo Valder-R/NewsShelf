@@ -1,7 +1,7 @@
 package com.newsshelf.admin.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
+import com.newsshelf.admin.security.role.Role;
+import jakarta.validation.constraints.NotNull;
 
-
-public record AssignRoleRequest(@NotBlank(message = "role is required") String role) {
+public record AssignRoleRequest(@NotNull Role role) {
 }

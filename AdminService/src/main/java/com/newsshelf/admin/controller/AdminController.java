@@ -15,9 +15,7 @@ public class AdminController {
 
     private final AdminService adminService;
 
-    /**
-     * Призначення ролі.
-     */
+
     @PatchMapping("/users/{userId}/role")
     public ResponseEntity<Void> assignRole(
             @PathVariable String userId,
@@ -27,9 +25,7 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Список користувачів з опційними фільтрами: role та status.
-     */
+
     @GetMapping("/users")
     public ResponseEntity<ListUsersResponse> listUsers(
             @RequestParam(required = false) String role,
@@ -38,9 +34,7 @@ public class AdminController {
         return ResponseEntity.ok(adminService.listUsers(role, status));
     }
 
-    /**
-     * Видалення користувача.
-     */
+
     @DeleteMapping("/users/{userId}")
     public ResponseEntity<Void> deleteUser(
             @PathVariable String userId
@@ -49,9 +43,7 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Видалення коментаря.
-     */
+
     @DeleteMapping("/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(
             @PathVariable String commentId
@@ -60,9 +52,7 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Видалення поста.
-     */
+
     @DeleteMapping("/posts/{postId}")
     public ResponseEntity<Void> deletePost(
             @PathVariable String postId

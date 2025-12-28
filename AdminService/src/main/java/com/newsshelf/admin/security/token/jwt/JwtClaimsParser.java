@@ -1,69 +1,69 @@
 package com.newsshelf.admin.security.token.jwt;
 
+import com.newsshelf.admin.security.role.Role;
 import io.jsonwebtoken.Claims;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
-
+import java.util.*;
 
 public class JwtClaimsParser {
 
-    private final String rolesClaimName;
+    private final List<String> roleClaimKeys;
 
-    public JwtClaimsParser(String rolesClaimName) {
-        this.rolesClaimName = (rolesClaimName == null || rolesClaimName.isBlank())
-                ? "roles"
-                : rolesClaimName;
+    public JwtClaimsParser(String rolesClaim, String aliasesCsv) {
+        List<String> keys = new ArrayList<>();
+
+        if (rolesClaim != null && !rolesClaim.isBlank()) {
+            keys.add(rolesClaim.trim());
+        }
+
+        if (aliasesCsv != null && !aliasesCsv.isBlank()) {
+            keys.addAll(Arrays.stream(aliasesCsv.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .toList());
+        }
+
+        if (keys.isEmpty()) {
+            keys.add("roles");
+            keys.add("role");
+        }
+
+        this.roleClaimKeys = keys.stream().distinct().toList();
     }
 
-    public String extractUserId(Claims claims) {
-        String sub = claims.getSubject();
-        if (sub != null && !sub.isBlank()) return sub;
-
-        Object uid = claims.get("userId");
-        if (uid != null) return String.valueOf(uid);
-
-        return null;
+    public String userId(Claims claims) {
+        return claims.getSubject();
     }
 
-    public Set<String> extractRoles(Claims claims) {
-        Object raw = claims.get(rolesClaimName);
-        if (raw == null) raw = claims.get("role");
+    public Set<Role> roles(Claims claims) {
+        Object value = null;
 
-        if (raw == null) return Set.of();
+        for (String key : roleClaimKeys) {
+            value = claims.get(key);
+            if (value != null) break;
+        }
 
-        if (raw instanceof Collection<?> col) {
-            Set<String> roles = new HashSet<>();
-            for (Object v : col) {
-                if (v != null) roles.add(String.valueOf(v));
+        return toRoles(value);
+    }
+
+    private Set<Role> toRoles(Object value) {
+        if (value == null) return Set.of();
+
+        Set<Role> roles = new LinkedHashSet<>();
+
+        if (value instanceof String s) {
+            roles.add(Role.from(s));
+            return roles;
+        }
+
+        if (value instanceof Collection<?> col) {
+            for (Object it : col) {
+                if (it != null) roles.add(Role.from(Objects.toString(it)));
             }
-            return normalizeRoles(roles);
+            return roles;
         }
 
-        String s = String.valueOf(raw).trim();
-        if (s.isEmpty()) return Set.of();
-
-        String[] parts = s.contains(",") ? s.split(",") : s.split("\\s+");
-
-        Set<String> roles = new HashSet<>();
-        for (String p : parts) {
-            String r = p.trim();
-            if (!r.isEmpty()) roles.add(r);
-        }
-        return normalizeRoles(roles);
-    }
-
-    private Set<String> normalizeRoles(Set<String> roles) {
-        Set<String> out = new HashSet<>();
-        for (String r : roles) {
-            if (r == null) continue;
-
-            String x = r.trim();
-            if (x.startsWith("ROLE_")) x = x.substring("ROLE_".length());
-            if (!x.isBlank()) out.add(x.toUpperCase(Locale.ROOT));
-        }
-        return out;
+        roles.add(Role.from(Objects.toString(value)));
+        return roles;
     }
 }
