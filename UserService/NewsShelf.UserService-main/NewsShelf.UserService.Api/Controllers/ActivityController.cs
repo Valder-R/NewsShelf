@@ -9,7 +9,7 @@ namespace NewsShelf.UserService.Api.Controllers;
 
 [ApiController]
 [Authorize]
-[Route("api/activities")]
+[Route("activities")]
 public class ActivityController(IActivityService activityService, IRabbitMqService rabbitMqService) : ControllerBase
 {
     [HttpPost("read")]
@@ -22,8 +22,7 @@ public class ActivityController(IActivityService activityService, IRabbitMqServi
         }
 
         var activity = await activityService.RecordReadAsync(userId, request, cancellationToken);
-        
-        // Publish news read event
+
         await rabbitMqService.PublishAsync("news_events", new NewsReadEvent
         {
             UserId = userId,
@@ -59,8 +58,7 @@ public class ActivityController(IActivityService activityService, IRabbitMqServi
         }
 
         var topics = await activityService.SetFavoriteTopicsAsync(userId, request.Topics, cancellationToken);
-        
-        // Publish favorite topic added event
+
         await rabbitMqService.PublishAsync("news_events", new FavoriteTopicAddedEvent
         {
             UserId = userId,

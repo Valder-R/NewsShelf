@@ -7,13 +7,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BusinessLogic.Services
 {
-    /// <summary>
-    /// Implements various search operations for news, including:
-    /// - text search (title + content)
-    /// - author-based search
-    /// - date range filtering
-    /// - combined search using multiple filters and sorting
-    /// </summary>
+
+
+
+
+
+
+
     public class NewsSearchService : INewsSearchService
     {
         private readonly ApplicationDbContext _context;
@@ -25,10 +25,9 @@ namespace BusinessLogic.Services
             _mapper = mapper;
         }
 
-        /// <summary>
-        /// Performs a full combined search using optional text query, author filter, 
-        /// date range, category and sorting options.
-        /// </summary>
+
+
+
         public async Task<IReadOnlyList<NewsResponse>> SearchAsync(
             string? query,
             string? author,
@@ -49,9 +48,8 @@ namespace BusinessLogic.Services
             return await ExecuteAsync(newsQuery);
         }
 
-        /// <summary>
-        /// Searches only by text keywords (title + content).
-        /// </summary>
+
+
         public async Task<IReadOnlyList<NewsResponse>> SearchByTextAsync(
             string query,
             string? sortBy,
@@ -65,9 +63,8 @@ namespace BusinessLogic.Services
             return await ExecuteAsync(newsQuery);
         }
 
-        /// <summary>
-        /// Searches only by author name.
-        /// </summary>
+
+
         public async Task<IReadOnlyList<NewsResponse>> SearchByAuthorAsync(
             string author,
             string? sortBy,
@@ -81,9 +78,8 @@ namespace BusinessLogic.Services
             return await ExecuteAsync(newsQuery);
         }
 
-        /// <summary>
-        /// Searches only within a specific date range.
-        /// </summary>
+
+
         public async Task<IReadOnlyList<NewsResponse>> SearchByDateRangeAsync(
             DateTime? fromDate,
             DateTime? toDate,
@@ -98,9 +94,8 @@ namespace BusinessLogic.Services
             return await ExecuteAsync(newsQuery);
         }
 
-        /// <summary>
-        /// Retrieves all news that belong to a specific category.
-        /// </summary>
+
+
         public async Task<IReadOnlyList<NewsResponse>> SearchByCategoryAsync(
             NewsCategory category,
             string? sortBy,
@@ -114,9 +109,8 @@ namespace BusinessLogic.Services
             return await ExecuteAsync(newsQuery);
         }
 
-        // ===========================
-        // Helper Methods
-        // ===========================
+
+
 
         private IQueryable<News> BaseQuery()
         {

@@ -52,9 +52,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers("/api/v1/admin/comments/**").hasAnyRole("ADMIN", "PUBLISHER")
-                        .requestMatchers("/api/v1/admin/posts/**").hasAnyRole("ADMIN", "PUBLISHER")
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/comments/**").hasAnyRole("ADMIN", "PUBLISHER")
+                        .requestMatchers("/posts/**").hasAnyRole("ADMIN", "PUBLISHER")
+                        .requestMatchers("/users/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new AdminAuthFilter(tokenAuthService), UsernamePasswordAuthenticationFilter.class)

@@ -23,9 +23,9 @@ app = FastAPI(
     title=settings.api_title,
     description=settings.api_description,
     version=settings.api_version,
-    openapi_url="/api/v1/openapi.json",
-    docs_url="/api/v1/docs",
-    redoc_url="/api/v1/redoc"
+    openapi_url="/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # Add CORS middleware
@@ -96,7 +96,7 @@ async def root():
     return {
         "name": "Recommendation Service API",
         "version": settings.api_version,
-        "docs": "/api/v1/docs"
+        "docs": "/docs"
     }
 
 

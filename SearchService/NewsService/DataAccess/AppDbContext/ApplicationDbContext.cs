@@ -8,6 +8,7 @@ namespace DataAccess.AppDbContext
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
+        Database.EnsureCreated();
         }
 
         public DbSet<News> NewsItems => Set<News>();
@@ -17,7 +18,6 @@ namespace DataAccess.AppDbContext
         {
             base.OnModelCreating(modelBuilder);
 
-            // Store enum Category as string
             modelBuilder.Entity<News>()
                 .Property(n => n.Category)
                 .HasConversion<string>();

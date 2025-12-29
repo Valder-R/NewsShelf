@@ -1,8 +1,7 @@
 namespace NewsService.Dto.Events;
 
-/// <summary>
-/// Event published when news is searched
-/// </summary>
+
+
 public class NewsSearchedEvent
 {
     public required string SearchQuery { get; set; }
@@ -11,9 +10,8 @@ public class NewsSearchedEvent
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
 
-/// <summary>
-/// Event published when news is viewed
-/// </summary>
+
+
 public class NewsViewedEvent
 {
     public int NewsId { get; set; }

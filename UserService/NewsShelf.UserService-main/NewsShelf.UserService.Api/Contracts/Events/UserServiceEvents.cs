@@ -1,8 +1,7 @@
 namespace NewsShelf.UserService.Api.Contracts.Events;
 
-/// <summary>
-/// Event published when user registers
-/// </summary>
+
+
 public class UserRegisteredEvent
 {
     public required string UserId { get; set; }
@@ -11,9 +10,8 @@ public class UserRegisteredEvent
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
 
-/// <summary>
-/// Event published when user adds favorite topics
-/// </summary>
+
+
 public class FavoriteTopicAddedEvent
 {
     public required string UserId { get; set; }
@@ -21,9 +19,8 @@ public class FavoriteTopicAddedEvent
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
 
-/// <summary>
-/// Event published when user reads a news article
-/// </summary>
+
+
 public class NewsReadEvent
 {
     public required string UserId { get; set; }
@@ -32,9 +29,8 @@ public class NewsReadEvent
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
 
-/// <summary>
-/// Event published when user updates profile
-/// </summary>
+
+
 public class UserProfileUpdatedEvent
 {
     public required string UserId { get; set; }

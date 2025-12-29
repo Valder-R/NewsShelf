@@ -8,10 +8,15 @@ import com.newsshelf.admin.audit.repository.AdminActionRepository;
 import com.newsshelf.admin.security.principal.AdminPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -23,31 +28,66 @@ public class DefaultAdminActionService implements AdminActionService {
     @Override
     public void log(ActionType action, TargetType targetType, String targetId, ActionStatus status) {
         try {
-            actionRepository.save(AdminAction.builder()
-                    .actorUserId(currentUserId())
-                    .action(action.name())
-                    .targetType(targetType.name())
-                    .targetId(targetId)
-                    .status(status.name())
-                    .createdAt(Instant.now())
-                    .build());
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-            log.debug("audit saved action={} targetType={} targetId={} status={}", action, targetType, targetId, status);
+            String actor = currentActor(auth);
+            String actorRoles = currentActorRoles(auth);
+
+            UUID correlationId = UUID.randomUUID();
+            OffsetDateTime now = OffsetDateTime.now();
+
+            UUID targetUserId = null;
+            if (targetType == TargetType.USER && targetId != null && !targetId.isBlank()) {
+                try {
+                    targetUserId = UUID.fromString(targetId);
+                } catch (IllegalArgumentException ignored) {
+                    targetUserId = null;
+                }
+            }
+
+            actionRepository.save(
+                    AdminAction.builder()
+                            .correlationId(correlationId)
+                            .actionType(action.name())
+                            .targetUserId(targetUserId)
+                            .actor(actor)
+                            .actorRoles(actorRoles)
+                            .status(status.name())
+                            .errorMessage(status == ActionStatus.FAILED ? "FAILED" : null)
+                            .startedAt(now)
+                            .finishedAt(now)
+                            .build()
+            );
+
+            log.debug("audit saved actionType={} targetType={} targetId={} status={}",
+                    action, targetType, targetId, status);
 
         } catch (Exception e) {
-            log.warn("audit save failed action={} targetType={} targetId={} status={} reason={}",
-                    action, targetType, targetId, status, e.getMessage());
+            log.warn("audit save failed actionType={} targetType={} targetId={} status={} reason={}",
+                    action, targetType, targetId, status, e.getMessage(), e);
         }
     }
 
-    private String currentUserId() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
+    private String currentActor(Authentication auth) {
         if (auth == null) return "unknown";
 
-        var principal = auth.getPrincipal();
+        Object principal = auth.getPrincipal();
         if (principal instanceof AdminPrincipal p) {
             return p.userId();
         }
-        return "unknown";
+
+        return auth.getName() != null ? auth.getName() : "unknown";
+    }
+
+    private String currentActorRoles(Authentication auth) {
+        if (auth == null) return "UNKNOWN";
+
+        Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
+        if (authorities.isEmpty()) return "UNKNOWN";
+
+        return authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .distinct()
+                .collect(Collectors.joining(","));
     }
 }

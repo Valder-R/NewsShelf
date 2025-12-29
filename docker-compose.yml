@@ -10,11 +10,11 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
     ports:
-      - "5432:5432"   # можна прибрати якщо не треба доступ з хоста
+      - "5432:5432"
     volumes:
       - admin_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d news_shelf_admin"]
+      test: [ "CMD-SHELL", "pg_isready -U admin -d news_shelf_admin" ]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -31,6 +31,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://admin-db:5432/news_shelf_admin
       SPRING_DATASOURCE_USERNAME: admin
       SPRING_DATASOURCE_PASSWORD: admin
+
+      SECURITY_JWT_SECRET: "your-super-secret-signing-key-change-in-production-12345"
+      SECURITY_JWT_ISSUER: "NewsShelf.UserService"
+      SERVICES_USER_BASE_URL: "http://user-service:5001/"
+      SERVICES_NEWS_BASE_URL: "http://search-service:5002"
+      SERVICES_COMMENTS_BASE_URL: "http://search-service:5002"
+
     ports:
       - "8080:8080"
 
@@ -38,21 +45,22 @@ services:
   # SEARCH (ASP.NET) + Postgres
   # =========================
   search-db:
-    image: postgres:15-alpine
+    image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: news_shelf_search_db
     environment:
-      POSTGRES_DB: news_shelf_search
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Your_password123!"   # мінімум 8 символів, великі/малі + цифра + спецсимвол
+      MSSQL_PID: "Developer"
     ports:
-      - "5433:5432"   # можна прибрати якщо не треба доступ з хоста
+      - "14333:1433"
     volumes:
-      - search_db_data:/var/lib/postgresql/data
+      - search_db_data:/var/opt/mssql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d news_shelf_search"]
-      interval: 5s
-      timeout: 3s
+      test: [ "CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Your_password123!' -Q 'SELECT 1' -C || exit 1" ]
+      interval: 10s
+      timeout: 5s
       retries: 30
+      start_period: 30s
 
   search-service:
     build:
@@ -66,13 +74,14 @@ services:
         condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=search-db;Port=5432;Database=news_shelf_search;Username=postgres;Password=postgres"
+      ConnectionStrings__DefaultConnection: "Server=search-db,1433;Database=news_shelf_search;User Id=sa;Password=Your_password123!;TrustServerCertificate=True;Encrypt=False"
       RabbitMq__Hostname: rabbitmq
       RabbitMq__Port: 5672
       RabbitMq__Username: guest
       RabbitMq__Password: guest
     ports:
       - "5002:5002"
+
 
   # =========================
   # REC (Python) + Postgres
@@ -89,7 +98,7 @@ services:
     volumes:
       - rec_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d news_shelf_rec"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d news_shelf_rec" ]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -105,10 +114,7 @@ services:
       rabbitmq:
         condition: service_started
     environment:
-      # головне: щоб код не брав localhost
       DATABASE_URL: "postgresql+psycopg2://postgres:postgres@rec-db:5432/news_shelf_rec"
-
-      # якщо твоєму коду треба саме ці змінні — лишаємо
       POSTGRES_HOST: rec-db
       POSTGRES_DB: news_shelf_rec
       POSTGRES_USER: postgres
@@ -156,7 +162,7 @@ services:
       RabbitMq__Port: 5672
       RabbitMq__Username: guest
       RabbitMq__Password: guest
-      OAuth__Enabled: "false"
+      OAuth__Enabled: "true"
 
     ports:
       - "5001:5001"

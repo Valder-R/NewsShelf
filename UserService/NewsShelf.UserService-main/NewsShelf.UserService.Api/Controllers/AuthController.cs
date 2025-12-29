@@ -9,7 +9,7 @@ using NewsShelf.UserService.Api.Services;
 namespace NewsShelf.UserService.Api.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[Route("auth")]
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
@@ -22,6 +22,11 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
+        if (request.FavoriteTopics == null || !request.FavoriteTopics.Any())
+        {
+            return BadRequest(new { message = "FavoriteTopics is required" });
+        }
+
         var user = new ApplicationUser
         {
             UserName = request.Email,
@@ -36,14 +41,16 @@ public class AuthController(
             return BadRequest(result.Errors.Select(e => e.Description));
         }
 
-        await userManager.AddToRoleAsync(user, "READER");
+        var acct = (request.AccountType ?? "reader").Trim().ToLowerInvariant();
+        var role = acct == "publisher" ? "PUBLISHER" : "READER";
+        await userManager.AddToRoleAsync(user, role);
+
 
         if (request.FavoriteTopics is not null)
         {
             await activityService.SetFavoriteTopicsAsync(user.Id, request.FavoriteTopics, cancellationToken);
         }
 
-        // Publish user registered event
         await rabbitMqService.PublishAsync("news_events", new UserRegisteredEvent
         {
             UserId = user.Id,

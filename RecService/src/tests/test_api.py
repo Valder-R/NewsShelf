@@ -94,7 +94,7 @@ class TestRecommendationEndpoints:
     
     def test_get_recommendations_no_activity(self, client, sample_data):
         """Test getting recommendations for user with no activity"""
-        response = client.get("/api/v1/recommendations/999?count=5")
+        response = client.get("/api/recommendations/999?count=5")
         assert response.status_code == 200
         data = response.json()
         assert data["user_id"] == 999
@@ -102,7 +102,7 @@ class TestRecommendationEndpoints:
     
     def test_get_recommendations_with_count(self, client, sample_data):
         """Test getting recommendations with specific count"""
-        response = client.get("/api/v1/recommendations/1?count=3")
+        response = client.get("/api/recommendations/1?count=3")
         assert response.status_code == 200
         data = response.json()
         assert data["user_id"] == 1
@@ -110,7 +110,7 @@ class TestRecommendationEndpoints:
     
     def test_get_user_interests(self, client, sample_data):
         """Test getting user interests"""
-        response = client.get("/api/v1/recommendations/1/interests")
+        response = client.get("/api/recommendations/1/interests")
         assert response.status_code == 200
         data = response.json()
         assert data["user_id"] == 1
@@ -118,7 +118,7 @@ class TestRecommendationEndpoints:
     
     def test_get_popular_news(self, client, sample_data):
         """Test getting popular news"""
-        response = client.get("/api/v1/recommendations/popular/news?count=3")
+        response = client.get("/api/recommendations/popular/news?count=3")
         assert response.status_code == 200
         data = response.json()
         assert "recommendations" in data

@@ -3,36 +3,46 @@ package com.newsshelf.admin.audit.model;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @Entity
 @Table(name = "admin_action")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdminAction {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @Column(name = "actor_user_id", nullable = false)
-    private String actorUserId;
+    @Column(name = "correlation_id", nullable = false)
+    private UUID correlationId;
 
-    @Column(name = "action", nullable = false)
-    private String action;
+    @Column(name = "action_type", nullable = false, length = 64)
+    private String actionType;
 
-    @Column(name = "target_type", nullable = false)
-    private String targetType;
+    @Column(name = "target_user_id")
+    private UUID targetUserId;
 
-    @Column(name = "target_id")
-    private String targetId;
+    @Column(name = "actor", nullable = false, length = 128)
+    private String actor;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "actor_roles", nullable = false, length = 255)
+    private String actorRoles;
+
+    @Column(name = "status", nullable = false, length = 32)
     private String status;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    @Column(name = "error_message")
+    private String errorMessage;
+
+    @Column(name = "started_at", nullable = false)
+    private OffsetDateTime startedAt;
+
+    @Column(name = "finished_at")
+    private OffsetDateTime finishedAt;
 }

@@ -1,6 +1,7 @@
 package com.newsshelf.admin.security.role;
 
 public enum Role {
+    READER,
     PUBLISHER,
     ADMIN;
 

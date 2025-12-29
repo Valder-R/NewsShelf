@@ -150,7 +150,7 @@ Response:
 ### Получить популярные новины
 
 ```bash
-GET /api/v1/recommendations/popular/news?count=10
+GET /api/recommendations/popular/news?count=10
 ```
 
 ### API Documentation

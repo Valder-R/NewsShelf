@@ -33,24 +33,21 @@ builder.Services.AddScoped<IExternalTokenProvider, GoogleTokenProvider>();
 builder.Services.AddScoped<IExternalOAuthService, ExternalOAuthService>();
 builder.Services.AddSingleton<IRabbitMqService, RabbitMqService>();
 
-// ======================
-// OAuth safe toggle (Docker-friendly)
-// ======================
+
+
 var oauthEnabled = builder.Configuration.GetValue<bool>("OAuth:Enabled");
 
 var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
 var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
 
-// Auto-disable OAuth if secrets are missing (avoid crash on startup)
 if (oauthEnabled && (string.IsNullOrWhiteSpace(googleClientId) || string.IsNullOrWhiteSpace(googleClientSecret)))
 {
     oauthEnabled = false;
     Console.WriteLine("⚠️ Google OAuth disabled: missing Authentication:Google:ClientId or ClientSecret");
 }
 
-// ======================
-// Auth
-// ======================
+
+
 var auth = builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -84,9 +81,8 @@ if (oauthEnabled)
 
 builder.Services.AddAuthorization();
 
-// ======================
-// CORS
-// ======================
+
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -126,9 +122,8 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// ======================
-// Ensure SQLite directory exists (from ConnectionStrings:UserDb)
-// ======================
+
+
 var connectionString = app.Configuration.GetConnectionString("UserDb");
 if (!string.IsNullOrEmpty(connectionString))
 {
@@ -156,13 +151,11 @@ if (!string.IsNullOrEmpty(connectionString))
     }
 }
 
-// Extra folder if you want it (safe)
 var dataDirectory = Path.Combine(app.Environment.ContentRootPath, "Data");
 Directory.CreateDirectory(dataDirectory);
 
-// ======================
-// Migrations + seed roles/admin
-// ======================
+
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -171,7 +164,7 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    var roles = new[] { "ADMIN", "MODERATOR", "READER" };
+    var roles = new[] { "ADMIN", "PUBLISHER", "READER" };
     foreach (var roleName in roles)
     {
         if (!await roleManager.RoleExistsAsync(roleName))
@@ -221,5 +214,6 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { ok = true }));
 app.MapControllers();
 app.Run();

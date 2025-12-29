@@ -5,9 +5,8 @@ using Microsoft.Extensions.Logging;
 
 namespace NewsShelf.UserService.Api.Services;
 
-/// <summary>
-/// RabbitMQ message publisher service
-/// </summary>
+
+
 public interface IRabbitMqService
 {
     Task PublishAsync<T>(string queue, T message) where T : class;

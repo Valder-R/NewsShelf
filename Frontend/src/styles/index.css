@@ -1,0 +1,190 @@
+:root {
+    --ns-bg: #0b0f0d;
+    --ns-surface: #111815;
+    --ns-surface-2: #0f1512;
+    --ns-border: #233028;
+    --ns-text: #e5e7eb;
+    --ns-muted: #9ca3af;
+    --ns-accent: #0f766e;
+    --ns-accent-2: #065f46;
+    --ns-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+body {
+    background: radial-gradient(900px 500px at 15% 0%, rgba(6, 95, 70, 0.22), transparent 55%),
+    radial-gradient(800px 500px at 85% 10%, rgba(15, 118, 110, 0.18), transparent 55%),
+    var(--ns-bg);
+    color: var(--ns-text);
+    min-height: 100vh;
+}
+
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: none;
+}
+
+.ns-card {
+    background: rgba(17, 24, 21, 0.82);
+    border: 1px solid rgba(35, 48, 40, 0.85);
+    border-radius: 16px;
+    box-shadow: var(--ns-shadow);
+    backdrop-filter: blur(10px);
+}
+
+.ns-muted {
+    color: var(--ns-muted);
+}
+
+.ns-input {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(35, 48, 40, 0.9) !important;
+    color: var(--ns-text) !important;
+}
+
+.ns-input::placeholder {
+    color: rgba(229, 231, 235, 0.45);
+}
+
+.ns-badge {
+    border: 1px solid rgba(35, 48, 40, 0.9);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(229, 231, 235, 0.92);
+}
+
+
+.navbar {
+    background: rgba(15, 21, 18, 0.8) !important;
+    border-bottom: 1px solid rgba(35, 48, 40, 0.9);
+    backdrop-filter: blur(10px);
+}
+
+.navbar .navbar-brand {
+    color: var(--ns-text) !important;
+}
+
+.navbar .nav-link {
+    color: rgba(229, 231, 235, 0.75) !important;
+}
+
+.navbar .nav-link.active {
+    color: var(--ns-text) !important;
+    font-weight: 600;
+}
+
+
+footer {
+    border-top: 1px solid rgba(35, 48, 40, 0.9);
+    background: rgba(15, 21, 18, 0.8);
+    backdrop-filter: blur(10px);
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+
+.btn-ns {
+    background: linear-gradient(180deg, rgba(15, 118, 110, 1), rgba(6, 95, 70, 1));
+    border: 1px solid rgba(20, 184, 166, 0.25);
+    color: white;
+}
+
+.btn-ns:hover {
+    filter: brightness(1.05);
+}
+
+.btn-outline-ns {
+    border-color: rgba(15, 118, 110, 0.7);
+    color: rgba(229, 231, 235, 0.92);
+}
+
+.btn-outline-ns:hover {
+    background: rgba(15, 118, 110, 0.12);
+    color: var(--ns-text);
+}
+
+.ns-hero {
+    padding: 26px 0 10px 0;
+}
+
+.ns-line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+
+.carousel-control-prev, .carousel-control-next {
+    width: 8%;
+    opacity: 0.7;
+}
+
+.carousel-control-prev:hover, .carousel-control-next:hover {
+    opacity: 1;
+}
+
+.carousel-indicators [data-bs-target] {
+    background-color: rgba(229, 231, 235, 0.45);
+}
+
+.carousel-indicators .active {
+    background-color: rgba(15, 118, 110, 0.9);
+}
+
+.ns-footer {
+    border-top: 1px solid rgba(35, 48, 40, 0.9);
+    background: rgba(15, 21, 18, 0.85);
+    backdrop-filter: blur(10px);
+    margin-top: auto;
+    z-index: 5;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    background: radial-gradient(900px 500px at 15% 0%, rgba(6, 95, 70, 0.22), transparent 55%),
+    radial-gradient(800px 500px at 85% 10%, rgba(15, 118, 110, 0.18), transparent 55%),
+    var(--ns-bg);
+    color: var(--ns-text);
+    min-height: 100vh;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+select.form-select.ns-input {
+    background-color: var(--ns-surface) !important;
+    color: var(--ns-text) !important;
+    border: 1px solid var(--ns-border) !important;
+}
+
+select.form-select.ns-input:focus {
+    background-color: var(--ns-surface) !important;
+    color: var(--ns-text) !important;
+    border-color: var(--ns-accent) !important;
+    box-shadow: 0 0 0 0.15rem rgba(15, 118, 110, 0.35) !important;
+}
+
+select.form-select.ns-input option {
+    background-color: var(--ns-surface-2);
+    color: var(--ns-text);
+}
+
+select.form-select.ns-input option:checked {
+    background-color: var(--ns-accent);
+    color: #ffffff;
+}
+
+select.form-select.ns-input option:hover {
+    background-color: var(--ns-accent-2);
+    color: #ffffff;
+}
