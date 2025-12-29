@@ -1,0 +1,102 @@
+---
+# JWT Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jwt-secret
+  namespace: newsshelf
+type: Opaque
+stringData:
+  signing-key: "your-super-secret-signing-key-change-in-production-12345"
+  issuer: "NewsShelf.UserService"
+  audience: "NewsShelf.Client"
+
+---
+# User Service ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  namespace: newsshelf
+data:
+  ASPNETCORE_ENVIRONMENT: Production
+  ConnectionStrings__UserDb: "Data Source=/data/users.db"
+  RabbitMq__Hostname: rabbitmq
+  RabbitMq__Port: "5672"
+
+---
+# User Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: newsshelf
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: user-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5001
+          envFrom:
+            - configMapRef:
+                name: user-service-config
+          env:
+            - name: Jwt__SigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: signing-key
+            - name: RabbitMq__Username
+              value: guest
+            - name: RabbitMq__Password
+              value: guest
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+---
+# User Service Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: newsshelf
+spec:
+  selector:
+    app: user-service
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
+  type: ClusterIP

@@ -1,0 +1,205 @@
+services:
+  # =========================
+  # ADMIN (Spring) + Postgres
+  # =========================
+  admin-db:
+    image: postgres:16
+    container_name: news_shelf_admin_db
+    environment:
+      POSTGRES_DB: news_shelf_admin
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - admin_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U admin -d news_shelf_admin" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  admin-service:
+    build:
+      context: ./AdminService
+      dockerfile: Dockerfile
+    container_name: news_shelf_admin_service
+    depends_on:
+      admin-db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://admin-db:5432/news_shelf_admin
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+
+      SECURITY_JWT_SECRET: "your-super-secret-signing-key-change-in-production-12345"
+      SECURITY_JWT_ISSUER: "NewsShelf.UserService"
+      SERVICES_USER_BASE_URL: "http://user-service:5001/"
+      SERVICES_NEWS_BASE_URL: "http://search-service:5002"
+      SERVICES_COMMENTS_BASE_URL: "http://search-service:5002"
+
+    ports:
+      - "8080:8080"
+
+  # =========================
+  # SEARCH (ASP.NET) + Postgres
+  # =========================
+  search-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: news_shelf_search_db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Your_password123!"   # мінімум 8 символів, великі/малі + цифра + спецсимвол
+      MSSQL_PID: "Developer"
+    ports:
+      - "14333:1433"
+    volumes:
+      - search_db_data:/var/opt/mssql
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Your_password123!' -Q 'SELECT 1' -C || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  search-service:
+    build:
+      context: .
+      dockerfile: SearchService/Dockerfile
+    container_name: news_shelf_search_service
+    depends_on:
+      search-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Server=search-db,1433;Database=news_shelf_search;User Id=sa;Password=Your_password123!;TrustServerCertificate=True;Encrypt=False"
+      RabbitMq__Hostname: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest
+    ports:
+      - "5002:5002"
+
+
+  # =========================
+  # REC (Python) + Postgres
+  # =========================
+  rec-db:
+    image: postgres:15-alpine
+    container_name: news_shelf_rec_db
+    environment:
+      POSTGRES_DB: news_shelf_rec
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"   # можна прибрати якщо не треба доступ з хоста
+    volumes:
+      - rec_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d news_shelf_rec" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  rec-service:
+    build:
+      context: ./RecService
+      dockerfile: Dockerfile
+    container_name: news_shelf_rec_service
+    depends_on:
+      rec-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    environment:
+      DATABASE_URL: "postgresql+psycopg2://postgres:postgres@rec-db:5432/news_shelf_rec"
+      POSTGRES_HOST: rec-db
+      POSTGRES_DB: news_shelf_rec
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8001:8001"
+    volumes:
+      - rec_logs:/app/logs
+
+  # =========================
+  # RABBITMQ (shared)
+  # =========================
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: news_shelf_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # =========================
+  # USER (ASP.NET) + SQLite
+  # =========================
+  user-service:
+    build:
+      context: .
+      dockerfile: UserService/Dockerfile
+    container_name: news_shelf_user_service
+    depends_on:
+      rabbitmq:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__UserDb: "Data Source=/data/users.db"
+      Jwt__SigningKey: "your-super-secret-signing-key-change-in-production-12345"
+      RabbitMq__Hostname: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest
+      OAuth__Enabled: "true"
+
+    ports:
+      - "5001:5001"
+    volumes:
+      - user_data:/data
+
+  # =========================
+  # GATEWAY + FRONTEND
+  # =========================
+  gateway:
+    image: nginx:alpine
+    container_name: news_shelf_gateway
+    depends_on:
+      - user-service
+      - search-service
+      - rec-service
+    ports:
+      - "5000:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: news_shelf_frontend
+    depends_on:
+      - gateway
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_URL: "http://localhost:5000/api"
+
+volumes:
+  admin_db_data:
+  search_db_data:
+  rec_db_data:
+  rabbitmq_data:
+  user_data:
+  rec_logs:

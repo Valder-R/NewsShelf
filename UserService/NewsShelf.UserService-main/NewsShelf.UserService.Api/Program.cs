@@ -31,8 +31,24 @@ builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<IExternalTokenProvider, GoogleTokenProvider>();
 builder.Services.AddScoped<IExternalOAuthService, ExternalOAuthService>();
+builder.Services.AddSingleton<IRabbitMqService, RabbitMqService>();
 
-builder.Services.AddAuthentication(options =>
+
+
+var oauthEnabled = builder.Configuration.GetValue<bool>("OAuth:Enabled");
+
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+
+if (oauthEnabled && (string.IsNullOrWhiteSpace(googleClientId) || string.IsNullOrWhiteSpace(googleClientSecret)))
+{
+    oauthEnabled = false;
+    Console.WriteLine("⚠️ Google OAuth disabled: missing Authentication:Google:ClientId or ClientSecret");
+}
+
+
+
+var auth = builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -40,6 +56,7 @@ builder.Services.AddAuthentication(options =>
     .AddJwtBearer(options =>
     {
         var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -52,13 +69,30 @@ builder.Services.AddAuthentication(options =>
             RoleClaimType = System.Security.Claims.ClaimTypes.Role,
             NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
         };
-    })
-    .AddGoogle(options =>
+    });
+
+if (oauthEnabled)
+{
+    auth.AddGoogle(options =>
     {
         builder.Configuration.GetSection("Authentication:Google").Bind(options);
     });
+}
 
 builder.Services.AddAuthorization();
+
+
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -82,10 +116,7 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityDefinition("Bearer", securityScheme);
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        {
-            securityScheme,
-            Array.Empty<string>()
-        }
+        { securityScheme, Array.Empty<string>() }
     });
 });
 
@@ -120,6 +151,8 @@ if (!string.IsNullOrEmpty(connectionString))
 
 var dataDirectory = Path.Combine(app.Environment.ContentRootPath, "Data");
 Directory.CreateDirectory(dataDirectory);
+
+
 
 using (var scope = app.Services.CreateScope())
 {
@@ -175,8 +208,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/health", () => Results.Ok(new { ok = true }));
 app.MapControllers();
 app.Run();

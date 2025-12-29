@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/admin")
+@RequestMapping(path = {"", "/api/admin", "/api/v1/admin"})
 @RequiredArgsConstructor
 public class AdminController {
 

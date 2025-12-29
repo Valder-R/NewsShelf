@@ -43,8 +43,8 @@ public class DefaultUserAdminService implements UserAdminService {
         }
 
         try {
-            userServiceClient.patch()
-                    .uri("/api/users/{id}/role", userId)
+            userServiceClient.put()
+                    .uri("/admin/users/{id}/role", userId)
                     .body(request)
                     .retrieve()
                     .onStatus(s -> s.value() == 404, (req, res) -> {
@@ -83,7 +83,7 @@ public class DefaultUserAdminService implements UserAdminService {
         try {
             ListUsersResponse body = userServiceClient.get()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/api/users")
+                            .path("/admin/users")
                             .queryParamIfPresent("role", Optional.ofNullable(role))
                             .queryParamIfPresent("status", Optional.ofNullable(status))
                             .build())
@@ -122,7 +122,7 @@ public class DefaultUserAdminService implements UserAdminService {
 
         try {
             userServiceClient.delete()
-                    .uri("/api/users/{id}", userId)
+                    .uri("/admin/users/{id}", userId)
                     .retrieve()
                     .onStatus(s -> s.value() == 404, (req, res) -> {
                         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");

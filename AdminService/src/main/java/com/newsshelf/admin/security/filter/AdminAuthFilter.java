@@ -58,6 +58,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             var principal = new AdminPrincipal(payload.userId(), payload.roles());
 
             var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
+            auth.setDetails(rawToken);
             SecurityContextHolder.getContext().setAuthentication(auth);
 
             log.debug("AUTH OK userId={} roles={} method={} path={}",

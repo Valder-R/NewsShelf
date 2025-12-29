@@ -3,35 +3,38 @@ using BusinessLogic.DTO;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Mvc;
 using NewsApi.Dto;
+using NewsService.Dto.Events;
+using NewsService.Services;
 
 
 namespace NewsApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     public class NewsController : ControllerBase
     {
         private readonly INewsService _newsService;
         private readonly INewsSearchService _newsSearchService;
         private readonly IWebHostEnvironment _env;
+        private readonly IRabbitMqService _rabbitMqService;
 
         public NewsController(
             INewsService newsService,
             INewsSearchService newsSearchService,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            IRabbitMqService rabbitMqService)
         {
             _newsService = newsService;
             _newsSearchService = newsSearchService;
             _env = env;
+            _rabbitMqService = rabbitMqService;
         }
 
-        // ==========================
-        // CRUD
-        // ==========================
 
-        /// <summary>
-        /// Returns all news entries ordered by publication date (newest first).
-        /// </summary>
+
+
+
+
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<NewsResponse>>> GetAll()
         {
@@ -39,9 +42,8 @@ namespace NewsApi.Controllers
             return Ok(items);
         }
 
-        /// <summary>
-        /// Returns a single news entry by its ID.
-        /// </summary>
+
+
         [HttpGet("{id:int}")]
         public async Task<ActionResult<NewsResponse>> GetById(int id)
         {
@@ -52,11 +54,10 @@ namespace NewsApi.Controllers
             return Ok(item);
         }
 
-        /// <summary>
-        /// Creates a news entry and uploads image files
-        /// (user selects photos from device).
-        /// Files are stored under wwwroot/uploads/news and exposed as URLs.
-        /// </summary>
+
+
+
+
         [HttpPost]
         [RequestSizeLimit(20_000_000)] // 20 MB
         public async Task<ActionResult<NewsResponse>> Create([FromForm] CreateNewsWithFilesDto dto)
@@ -118,11 +119,10 @@ namespace NewsApi.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
-        /// <summary>
-        /// Updates an existing news entry.
-        /// Expects image URLs which will fully replace existing images.
-        /// (можеш потім зробити окремий PUT з файлами, якщо треба).
-        /// </summary>
+
+
+
+
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateNewsRequest request)
         {
@@ -136,9 +136,8 @@ namespace NewsApi.Controllers
             return NoContent();
         }
 
-        /// <summary>
-        /// Deletes an existing news entry and its related images.
-        /// </summary>
+
+
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -164,11 +163,9 @@ namespace NewsApi.Controllers
             return Ok(categories);
         }
 
-        // Search endpoints
 
-        /// <summary>
-        /// Combined search: text, author, date range, category, sorting.
-        /// </summary>
+
+
         [HttpGet("search")]
         public async Task<ActionResult<IReadOnlyList<NewsResponse>>> Search(
             [FromQuery] string? query,
@@ -177,7 +174,8 @@ namespace NewsApi.Controllers
             [FromQuery] DateTime? toDate,
             [FromQuery] NewsCategory? category,
             [FromQuery] string? sortBy,
-            [FromQuery] bool sortDesc = true)
+            [FromQuery] bool sortDesc = true,
+            [FromQuery] string? userId = null)
         {
             var result = await _newsSearchService.SearchAsync(
                 query,
@@ -188,28 +186,48 @@ namespace NewsApi.Controllers
                 sortBy,
                 sortDesc);
 
+            if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(query))
+            {
+                await _rabbitMqService.PublishAsync("news_searched", new NewsSearchedEvent
+                {
+                    SearchQuery = query,
+                    UserId = userId,
+                    ResultCount = result?.Count ?? 0,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
             return Ok(result);
         }
 
-        /// <summary>
-        /// Searches news only by text (title + content).
-        /// </summary>
         [HttpGet("search/by-text")]
         public async Task<ActionResult<IReadOnlyList<NewsResponse>>> SearchByText(
             [FromQuery] string query,
             [FromQuery] string? sortBy,
-            [FromQuery] bool sortDesc = true)
+            [FromQuery] bool sortDesc = true,
+            [FromQuery] string? userId = null)
         {
             if (string.IsNullOrWhiteSpace(query))
                 return BadRequest("Query parameter is required.");
 
             var result = await _newsSearchService.SearchByTextAsync(query, sortBy, sortDesc);
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                await _rabbitMqService.PublishAsync("news_events", new NewsSearchedEvent
+                {
+                    SearchQuery = query,
+                    UserId = userId,
+                    ResultCount = result?.Count ?? 0,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
             return Ok(result);
         }
 
-        /// <summary>
-        /// Searches news only by author.
-        /// </summary>
+
+
         [HttpGet("search/by-author")]
         public async Task<ActionResult<IReadOnlyList<NewsResponse>>> SearchByAuthor(
             [FromQuery] string author,
@@ -223,9 +241,8 @@ namespace NewsApi.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Searches news only within a specific date range.
-        /// </summary>
+
+
         [HttpGet("search/by-date-range")]
         public async Task<ActionResult<IReadOnlyList<NewsResponse>>> SearchByDateRange(
             [FromQuery] DateTime? fromDate,
@@ -237,9 +254,8 @@ namespace NewsApi.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Retrieves all news that belong to a specific category.
-        /// </summary>
+
+
         [HttpGet("search/by-category")]
         public async Task<ActionResult<IReadOnlyList<NewsResponse>>> SearchByCategory(
             [FromQuery] NewsCategory category,

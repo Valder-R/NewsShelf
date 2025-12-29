@@ -2,24 +2,31 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using NewsShelf.UserService.Api.Contracts.Auth;
+using NewsShelf.UserService.Api.Contracts.Events;
 using NewsShelf.UserService.Api.Models;
 using NewsShelf.UserService.Api.Services;
 
 namespace NewsShelf.UserService.Api.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[Route("auth")]
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     ITokenService tokenService,
     IExternalOAuthService externalOAuthService,
-    IActivityService activityService) : ControllerBase
+    IActivityService activityService,
+    IRabbitMqService rabbitMqService) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
+        if (request.FavoriteTopics == null || !request.FavoriteTopics.Any())
+        {
+            return BadRequest(new { message = "FavoriteTopics is required" });
+        }
+
         var user = new ApplicationUser
         {
             UserName = request.Email,

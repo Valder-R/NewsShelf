@@ -10,6 +10,8 @@ public class RegisterRequest
     [Required, MinLength(6)]
     public string Password { get; set; } = string.Empty;
 
+    public string? AccountType { get; set; }
+
     [Required, MaxLength(128)]
     public string DisplayName { get; set; } = string.Empty;
 
