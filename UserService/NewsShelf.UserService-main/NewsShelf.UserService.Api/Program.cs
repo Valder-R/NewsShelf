@@ -122,8 +122,6 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-
-
 var connectionString = app.Configuration.GetConnectionString("UserDb");
 if (!string.IsNullOrEmpty(connectionString))
 {
@@ -131,18 +129,18 @@ if (!string.IsNullOrEmpty(connectionString))
     if (dataSourceIndex >= 0)
     {
         var dbPath = connectionString.Substring(dataSourceIndex + "Data Source=".Length).Trim();
-
+        
         var semicolonIndex = dbPath.IndexOf(';');
         if (semicolonIndex >= 0)
         {
             dbPath = dbPath.Substring(0, semicolonIndex).Trim();
         }
-
+        
         if (!Path.IsPathRooted(dbPath))
         {
             dbPath = Path.Combine(app.Environment.ContentRootPath, dbPath);
         }
-
+        
         var dbDirectory = Path.GetDirectoryName(dbPath);
         if (!string.IsNullOrEmpty(dbDirectory) && !Directory.Exists(dbDirectory))
         {
@@ -164,7 +162,7 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    var roles = new[] { "ADMIN", "PUBLISHER", "READER" };
+    var roles = new[] { "ADMIN", "MODERATOR", "READER" };
     foreach (var roleName in roles)
     {
         if (!await roleManager.RoleExistsAsync(roleName))
@@ -173,6 +171,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
+    // Створюємо адміністратора якщо його ще немає
     var adminEmail = app.Configuration["Admin:Email"] ?? "admin@newsshelf.com";
     var adminPassword = app.Configuration["Admin:Password"] ?? "Admin123!";
     var adminDisplayName = app.Configuration["Admin:DisplayName"] ?? "System Administrator";

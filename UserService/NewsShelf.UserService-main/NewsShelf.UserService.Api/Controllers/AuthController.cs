@@ -41,22 +41,12 @@ public class AuthController(
             return BadRequest(result.Errors.Select(e => e.Description));
         }
 
-        var acct = (request.AccountType ?? "reader").Trim().ToLowerInvariant();
-        var role = acct == "publisher" ? "PUBLISHER" : "READER";
-        await userManager.AddToRoleAsync(user, role);
-
+        await userManager.AddToRoleAsync(user, "READER");
 
         if (request.FavoriteTopics is not null)
         {
             await activityService.SetFavoriteTopicsAsync(user.Id, request.FavoriteTopics, cancellationToken);
         }
-
-        await rabbitMqService.PublishAsync("news_events", new UserRegisteredEvent
-        {
-            UserId = user.Id,
-            Email = user.Email,
-            DisplayName = user.DisplayName ?? user.Email
-        });
 
         var response = await tokenService.GenerateAccessTokenAsync(user);
         return CreatedAtAction(nameof(Register), response);
